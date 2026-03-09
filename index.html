@@ -679,20 +679,20 @@
   #hud h1 { font-size: 22px; color: #fff; font-weight: 800; letter-spacing: 5px; text-transform: uppercase; }
   #hud .sub { font-size: 11px; color: #444; margin-top: 4px; max-width: 500px; line-height: 1.5; }
 
-  #osint-feed {
+  #events-feed {
     position: fixed;
     top: 46px;
     left: 16px;
     z-index: 190;
     width: 320px;
-    background: rgba(8,8,13,0.85);
+    background: rgba(8,8,13,0.88);
     border: 1px solid #1a1a28;
     border-radius: 10px;
     overflow: hidden;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
-  #osint-feed .feed-header {
+  #events-feed .ef-header {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -706,34 +706,71 @@
     cursor: pointer;
     user-select: none;
   }
-  #osint-feed .feed-header svg { width: 12px; height: 12px; fill: #555; }
-  #osint-feed .feed-header .feed-live {
-    width: 5px; height: 5px; border-radius: 50%;
-    background: #22c55e; margin-left: auto;
-    animation: livePulse 2s infinite;
+  #events-feed .ef-header .ef-count {
+    font-size: 8px;
+    color: #333;
+    font-weight: 600;
+    margin-left: auto;
   }
-  @keyframes livePulse {
-    0%, 100% { opacity: 1; box-shadow: 0 0 3px #22c55e; }
-    50% { opacity: 0.4; box-shadow: none; }
-  }
-  #osint-feed .feed-body {
-    max-height: 380px;
+  #events-feed .ef-body {
+    max-height: 420px;
     overflow-y: auto;
     transition: max-height 0.3s ease;
   }
-  #osint-feed .feed-body::-webkit-scrollbar { width: 3px; }
-  #osint-feed .feed-body::-webkit-scrollbar-thumb { background: #1a1a2a; border-radius: 2px; }
-  #osint-feed.collapsed .feed-body { max-height: 0; overflow: hidden; }
-  #osint-feed .feed-footer {
-    padding: 6px 12px;
-    border-top: 1px solid #1a1a28;
-    text-align: center;
+  #events-feed .ef-body::-webkit-scrollbar { width: 3px; }
+  #events-feed .ef-body::-webkit-scrollbar-thumb { background: #1a1a2a; border-radius: 2px; }
+  #events-feed.collapsed .ef-body { max-height: 0; overflow: hidden; }
+  #events-feed.collapsed .ef-header .ef-count { display: none; }
+  .ev-item {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    position: relative;
   }
-  #osint-feed .feed-footer a {
-    font-size: 9px; color: #444; text-decoration: none;
+  .ev-item:last-child { border-bottom: none; }
+  .ev-date {
+    font-size: 8px;
+    color: #333;
     letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 3px;
   }
-  #osint-feed .feed-footer a:hover { color: #888; }
+  .ev-date-divider {
+    padding: 4px 12px 2px;
+    font-size: 8px;
+    font-weight: 700;
+    color: #2a2a3a;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    position: sticky;
+    top: 0;
+    background: rgba(8,8,13,0.95);
+    z-index: 1;
+  }
+  .ev-text {
+    font-size: 11px;
+    color: #bbb;
+    line-height: 1.45;
+  }
+  .ev-source {
+    font-size: 9px;
+    color: #444;
+    margin-top: 2px;
+  }
+  .ev-dot {
+    position: absolute;
+    left: 4px;
+    top: 14px;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #333;
+  }
+  .ev-item.critical .ev-dot { background: #b42828; }
+  .ev-item.critical .ev-text { color: #e0c0c0; }
+  .ev-item.military .ev-dot { background: #ea580c; }
+  .ev-item.diplomatic .ev-dot { background: #3b82f6; }
+  .ev-item.humanitarian .ev-dot { background: #22c55e; }
 
   #legend {
     position: fixed;
@@ -811,22 +848,12 @@
   <h1>SITUATION MAP</h1>
 </div>
 
-<div id="osint-feed">
-  <div class="feed-header" onclick="document.getElementById('osint-feed').classList.toggle('collapsed')">
-    <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-    OSINT FEED &mdash; @sentdefender
-    <div class="feed-live" title="Live"></div>
+<div id="events-feed">
+  <div class="ef-header" onclick="document.getElementById('events-feed').classList.toggle('collapsed')">
+    RECENT EVENTS
+    <span class="ef-count" id="ef-count"></span>
   </div>
-  <div class="feed-body" id="osint-feed-body">
-    <iframe id="osint-iframe"
-      src="https://syndication.twitter.com/srv/timeline-profile/screen-name/sentdefender?dnt=true&hideHeader=true&hideFooter=true&hideBorder=true&hideScrollBar=true&showReplies=false&theme=dark&transparent=true&tweetLimit=3"
-      style="width:100%;height:380px;border:none;overflow:hidden;background:transparent;color-scheme:dark;"
-      sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"
-      loading="lazy"></iframe>
-  </div>
-  <div class="feed-footer">
-    <a href="https://x.com/sentdefender" target="_blank">View @sentdefender on X</a>
-  </div>
+  <div class="ef-body" id="ef-body"></div>
 </div>
 
 <div id="mode-toggle">
@@ -2289,6 +2316,73 @@ function toggleCountry(header) {
   const block = header.parentElement;
   block.classList.toggle('expanded');
 }
+
+// ============================================================
+// RECENT EVENTS FEED (curated, date-stamped)
+// ============================================================
+const EVENTS = [
+  // March 8, 2026
+  { date: '2026-03-08', time: '14:30', type: 'military', text: 'Iran launches drone swarm targeting Kuwait naval base; most intercepted by Patriot systems', source: 'Reuters' },
+  { date: '2026-03-08', time: '09:15', type: 'diplomatic', text: 'UN Security Council emergency session on Iran; China and Russia block ceasefire resolution', source: 'AP' },
+  // March 7, 2026
+  { date: '2026-03-07', time: '22:00', type: 'military', text: 'Israeli Air Force strikes Iranian air defense systems at Mehrabad International Airport, Tehran', source: 'Times of Israel' },
+  { date: '2026-03-07', time: '16:45', type: 'critical', text: 'IRGC General Jabbari warns US will see weapons "never seen before"; threatens escalation', source: 'Al Jazeera' },
+  { date: '2026-03-07', time: '11:20', type: 'humanitarian', text: 'UNHCR reports 340,000 displaced in western Iran from ongoing airstrikes', source: 'UN News' },
+  // March 6, 2026
+  { date: '2026-03-06', time: '20:30', type: 'military', text: 'Explosions reported in Tehran, Isfahan, Shiraz in another wave of Israeli Air Force strikes', source: 'CNN' },
+  { date: '2026-03-06', time: '14:00', type: 'military', text: 'Clashes in Baghdad as pro-Iran demonstrators storm Green Zone near US Embassy', source: 'Reuters' },
+  { date: '2026-03-06', time: '08:45', type: 'diplomatic', text: 'Saudi Arabia closes airspace to all military flights; declares neutrality', source: 'Al Arabiya' },
+  // March 5, 2026
+  { date: '2026-03-05', time: '19:00', type: 'military', text: 'Iran fires retaliatory ballistic missiles at US bases in Bahrain, Iraq, Kuwait, Saudi Arabia', source: 'AP' },
+  { date: '2026-03-05', time: '12:30', type: 'critical', text: 'Iranian Cabinet declares 40 days of mourning following Khamenei\'s death', source: 'Reuters' },
+  // March 4, 2026
+  { date: '2026-03-04', time: '23:15', type: 'military', text: 'Houthi drones intercepted over Eilat, Israel; fourth wave this week', source: 'Times of Israel' },
+  { date: '2026-03-04', time: '16:00', type: 'critical', text: 'Hundreds celebrate in Isfahan with gunfire after reports of Khamenei elimination', source: 'BBC' },
+  // March 3, 2026
+  { date: '2026-03-03', time: '21:30', type: 'critical', text: 'Khamenei confirmed killed in Israeli airstrike on Tehran compound', source: 'Times of Israel' },
+  { date: '2026-03-03', time: '14:00', type: 'military', text: 'USS Frank E. Petersen Jr. fires Tomahawk cruise missiles at Iranian targets', source: 'CNN' },
+  { date: '2026-03-03', time: '08:00', type: 'military', text: 'Hegseth calls Operation Epic Fury "most lethal aerial operation in history"', source: 'DoD' },
+  // March 2, 2026
+  { date: '2026-03-02', time: '22:00', type: 'critical', text: 'Operation Epic Fury begins: CVW-9 launches F-35Cs, Super Hornets from USS Lincoln', source: 'Reuters' },
+  { date: '2026-03-02', time: '19:30', type: 'military', text: 'VP Vance and Cabinet monitor Epic Fury from White House Situation Room', source: 'AP' },
+  { date: '2026-03-02', time: '15:00', type: 'military', text: 'Israel launches preemptive strikes on Tehran; explosions and Tomahawk missiles seen over Iraq', source: 'Al Jazeera' },
+  // February 28, 2026
+  { date: '2026-02-28', time: '18:00', type: 'military', text: 'IRGC begins nationwide missile and air-defense exercise in Tehran and Shiraz', source: 'Reuters' },
+  { date: '2026-02-28', time: '10:00', type: 'diplomatic', text: 'Trump administration issues final ultimatum to Iran on nuclear program', source: 'CNN' },
+  // February 25, 2026
+  { date: '2026-02-25', time: '14:00', type: 'military', text: 'USS Abraham Lincoln carrier strike group enters Arabian Sea; additional F-35 squadrons deployed', source: 'USNI News' },
+  { date: '2026-02-25', time: '09:00', type: 'diplomatic', text: 'Iran rejects nuclear deal terms; IAEA confirms 408.6 kg of 60% enriched uranium stockpile', source: 'IAEA' },
+];
+
+function renderEvents() {
+  const container = document.getElementById('ef-body');
+  const countEl = document.getElementById('ef-count');
+  countEl.textContent = EVENTS.length + ' events';
+
+  let html = '';
+  let lastDate = '';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  EVENTS.forEach(ev => {
+    const d = new Date(ev.date + 'T' + ev.time + ':00');
+    const dateStr = months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+
+    if (dateStr !== lastDate) {
+      html += `<div class="ev-date-divider">${dateStr}</div>`;
+      lastDate = dateStr;
+    }
+
+    html += `<div class="ev-item ${ev.type}">
+      <div class="ev-dot"></div>
+      <div class="ev-date">${ev.time} UTC</div>
+      <div class="ev-text">${ev.text}</div>
+      <div class="ev-source">&mdash; ${ev.source}</div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+renderEvents();
 
 // Default to globe mode on load
 let currentModeInit = 'globe';
