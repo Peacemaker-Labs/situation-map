@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Situation Map</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 <style>
@@ -818,7 +817,9 @@
     OSINT FEED &mdash; @sentdefender
     <div class="feed-live" title="Live"></div>
   </div>
-  <div class="feed-body" id="osint-feed-body"></div>
+  <div class="feed-body" id="osint-feed-body">
+    <a class="twitter-timeline" data-theme="dark" data-chrome="noheader nofooter noborders transparent noscrollbar" data-tweet-limit="3" data-width="320" data-dnt="true" href="https://twitter.com/sentdefender?ref_src=twsrc%5Etfw">Loading @sentdefender...</a>
+  </div>
   <div class="feed-footer">
     <a href="https://x.com/sentdefender" target="_blank">Follow @sentdefender on X</a>
   </div>
@@ -2285,37 +2286,16 @@ function toggleCountry(header) {
   block.classList.toggle('expanded');
 }
 
-// Initialize live OSINT feed from @sentdefender
-function initOsintFeed() {
-  const container = document.getElementById('osint-feed-body');
-  if (!container) return;
-  if (window.twttr && twttr.widgets) {
-    twttr.widgets.createTimeline(
-      { sourceType: 'profile', screenName: 'sentdefender' },
-      container,
-      { theme: 'dark', chrome: 'noheader nofooter noborders transparent noscrollbar', height: 380, tweetLimit: 3, width: 300, dnt: true }
-    ).catch(() => {
-      container.innerHTML = '<div style="padding:12px;font-size:11px;color:#444;">Could not load feed. <a href="https://x.com/sentdefender" target="_blank" style="color:#1d9bf0;">View on X</a></div>';
-    });
-  } else {
-    const iv = setInterval(() => {
-      if (window.twttr && twttr.widgets) {
-        clearInterval(iv);
-        initOsintFeed();
-      }
-    }, 500);
-    setTimeout(() => {
-      clearInterval(iv);
-      container.innerHTML = '<div style="padding:12px;font-size:11px;color:#444;">Feed unavailable. <a href="https://x.com/sentdefender" target="_blank" style="color:#1d9bf0;">View on X</a></div>';
-    }, 10000);
-  }
-}
-// Load feed on page ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initOsintFeed);
-} else {
-  initOsintFeed();
-}
+// Initialize live OSINT feed - twttr.widgets.load() processes the anchor tag
+window.twttr = (function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0], t = window.twttr || {};
+  if (d.getElementById(id)) return t;
+  js = d.createElement(s); js.id = id;
+  js.src = "https://platform.twitter.com/widgets.js";
+  fjs.parentNode.insertBefore(js, fjs);
+  t._e = []; t.ready = function(f) { t._e.push(f); };
+  return t;
+}(document, "script", "twitter-wjs"));
 
 // Default to globe mode on load
 let currentModeInit = 'globe';
