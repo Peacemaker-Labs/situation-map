@@ -725,13 +725,14 @@
     margin-bottom: 3px;
   }
   .ev-date-divider {
-    padding: 4px 12px 2px;
-    font-size: 9px;
+    padding: 6px 12px 4px;
+    font-size: 10px;
     font-weight: 700;
-    color: #555;
+    color: #888;
     letter-spacing: 1.5px;
     text-transform: uppercase;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    margin-top: 4px;
     position: sticky;
     top: 0;
     background: rgba(8,8,13,0.95);
@@ -2359,8 +2360,8 @@ function renderEvents() {
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   EVENTS.forEach(ev => {
-    const d = new Date(ev.date + 'T' + ev.time + ':00');
-    const dateStr = months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+    const parts = ev.date.split('-');
+    const dateStr = months[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10) + ', ' + parts[0];
 
     if (dateStr !== lastDate) {
       html += `<div class="ev-date-divider">${dateStr}</div>`;
