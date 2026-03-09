@@ -2313,37 +2313,40 @@ function toggleCountry(header) {
 // RECENT EVENTS FEED (curated, date-stamped)
 // ============================================================
 const EVENTS = [
-  // March 8, 2026
-  { date: '2026-03-08', time: '14:30', type: 'military', text: 'Iran launches drone swarm targeting Kuwait naval base; most intercepted by Patriot systems', source: 'Reuters' },
-  { date: '2026-03-08', time: '09:15', type: 'diplomatic', text: 'UN Security Council emergency session on Iran; China and Russia block ceasefire resolution', source: 'AP' },
-  // March 7, 2026
-  { date: '2026-03-07', time: '22:00', type: 'military', text: 'Israeli Air Force strikes Iranian air defense systems at Mehrabad International Airport, Tehran', source: 'Times of Israel' },
-  { date: '2026-03-07', time: '16:45', type: 'critical', text: 'IRGC General Jabbari warns US will see weapons "never seen before"; threatens escalation', source: 'Al Jazeera' },
-  { date: '2026-03-07', time: '11:20', type: 'humanitarian', text: 'UNHCR reports 340,000 displaced in western Iran from ongoing airstrikes', source: 'UN News' },
-  // March 6, 2026
-  { date: '2026-03-06', time: '20:30', type: 'military', text: 'Explosions reported in Tehran, Isfahan, Shiraz in another wave of Israeli Air Force strikes', source: 'CNN' },
-  { date: '2026-03-06', time: '14:00', type: 'military', text: 'Clashes in Baghdad as pro-Iran demonstrators storm Green Zone near US Embassy', source: 'Reuters' },
-  { date: '2026-03-06', time: '08:45', type: 'diplomatic', text: 'Saudi Arabia closes airspace to all military flights; declares neutrality', source: 'Al Arabiya' },
-  // March 5, 2026
-  { date: '2026-03-05', time: '19:00', type: 'military', text: 'Iran fires retaliatory ballistic missiles at US bases in Bahrain, Iraq, Kuwait, Saudi Arabia', source: 'AP' },
-  { date: '2026-03-05', time: '12:30', type: 'critical', text: 'Iranian Cabinet declares 40 days of mourning following Khamenei\'s death', source: 'Reuters' },
-  // March 4, 2026
-  { date: '2026-03-04', time: '23:15', type: 'military', text: 'Houthi drones intercepted over Eilat, Israel; fourth wave this week', source: 'Times of Israel' },
-  { date: '2026-03-04', time: '16:00', type: 'critical', text: 'Hundreds celebrate in Isfahan with gunfire after reports of Khamenei elimination', source: 'BBC' },
-  // March 3, 2026
-  { date: '2026-03-03', time: '21:30', type: 'critical', text: 'Khamenei confirmed killed in Israeli airstrike on Tehran compound', source: 'Times of Israel' },
-  { date: '2026-03-03', time: '14:00', type: 'military', text: 'USS Frank E. Petersen Jr. fires Tomahawk cruise missiles at Iranian targets', source: 'CNN' },
-  { date: '2026-03-03', time: '08:00', type: 'military', text: 'Hegseth calls Operation Epic Fury "most lethal aerial operation in history"', source: 'DoD' },
-  // March 2, 2026
-  { date: '2026-03-02', time: '22:00', type: 'critical', text: 'Operation Epic Fury begins: CVW-9 launches F-35Cs, Super Hornets from USS Lincoln', source: 'Reuters' },
-  { date: '2026-03-02', time: '19:30', type: 'military', text: 'VP Vance and Cabinet monitor Epic Fury from White House Situation Room', source: 'AP' },
-  { date: '2026-03-02', time: '15:00', type: 'military', text: 'Israel launches preemptive strikes on Tehran; explosions and Tomahawk missiles seen over Iraq', source: 'Al Jazeera' },
-  // February 28, 2026
-  { date: '2026-02-28', time: '18:00', type: 'military', text: 'IRGC begins nationwide missile and air-defense exercise in Tehran and Shiraz', source: 'Reuters' },
-  { date: '2026-02-28', time: '10:00', type: 'diplomatic', text: 'Trump administration issues final ultimatum to Iran on nuclear program', source: 'CNN' },
-  // February 25, 2026
-  { date: '2026-02-25', time: '14:00', type: 'military', text: 'USS Abraham Lincoln carrier strike group enters Arabian Sea; additional F-35 squadrons deployed', source: 'USNI News' },
-  { date: '2026-02-25', time: '09:00', type: 'diplomatic', text: 'Iran rejects nuclear deal terms; IAEA confirms 408.6 kg of 60% enriched uranium stockpile', source: 'IAEA' },
+  // March 8, 2026 (Day 9)
+  { date: '2026-03-08', time: '2:00 PM', type: 'critical', text: 'Mojtaba Khamenei named Iran\'s new Supreme Leader by Assembly of Experts', source: 'NPR' },
+  { date: '2026-03-08', time: '11:30 AM', type: 'military', text: 'Israel strikes Iranian oil storage facilities for the first time since war began', source: 'Al Jazeera' },
+  { date: '2026-03-08', time: '9:00 AM', type: 'diplomatic', text: 'Iran\'s President Pezeshkian: nation "will not bow" to US/Israel pressure', source: 'Washington Post' },
+  { date: '2026-03-08', time: '7:00 AM', type: 'humanitarian', text: '500,000+ displaced in Lebanon as Israel escalates cross-border attacks', source: 'Al Jazeera' },
+  // March 7, 2026 (Day 8)
+  { date: '2026-03-07', time: '6:00 PM', type: 'military', text: 'Satellite imagery reveals extensive damage to Iranian military bases across country', source: 'Al Jazeera' },
+  { date: '2026-03-07', time: '2:30 PM', type: 'military', text: '41 killed in Israeli air attacks on Lebanon\'s Bekaa Valley; ground clashes erupt', source: 'Al Jazeera' },
+  { date: '2026-03-07', time: '10:00 AM', type: 'humanitarian', text: '7th US service member killed in Iran war', source: 'CBS News' },
+  // March 6, 2026 (Day 7)
+  { date: '2026-03-06', time: '5:00 PM', type: 'diplomatic', text: 'Trump demands Iran\'s "unconditional surrender"; rejects all negotiations', source: 'NPR' },
+  { date: '2026-03-06', time: '12:00 PM', type: 'humanitarian', text: '217+ killed in Israel\'s Lebanon attacks across Beirut, south, and east', source: 'Al Jazeera' },
+  { date: '2026-03-06', time: '8:00 AM', type: 'diplomatic', text: 'Tehran says no ceasefire or talks despite US claims of heavy Iranian losses', source: 'The National' },
+  // March 5, 2026 (Day 6)
+  { date: '2026-03-05', time: '4:00 PM', type: 'military', text: 'Houthi leader al-Houthi says "hands on the trigger" but holds fire for now', source: 'Long War Journal' },
+  { date: '2026-03-05', time: '11:00 AM', type: 'military', text: 'Israeli strikes hit Beirut amid threats against Iranian officials in Lebanon', source: 'Al Jazeera' },
+  // March 4, 2026 (Day 5)
+  { date: '2026-03-04', time: '3:00 PM', type: 'diplomatic', text: 'Netanyahu calls White House asking if secret US-Iran talks are happening', source: 'Axios' },
+  // March 3, 2026 (Day 4)
+  { date: '2026-03-03', time: '6:00 PM', type: 'military', text: 'Israel authorizes ground incursion into southern Lebanon; troops enter villages', source: 'Al Jazeera' },
+  { date: '2026-03-03', time: '1:00 PM', type: 'military', text: 'Israeli strikes destroy Assembly of Experts meeting site, delaying successor vote', source: 'CSIS' },
+  // March 2, 2026 (Day 3)
+  { date: '2026-03-02', time: '8:00 PM', type: 'critical', text: 'Iran launches Operation True Promise 4: strikes hit Israel, UAE, Bahrain, Qatar, Saudi', source: 'Al Jazeera' },
+  { date: '2026-03-02', time: '5:00 PM', type: 'military', text: 'Hezbollah launches massive rocket/drone barrage at Haifa retaliating for Khamenei killing', source: 'NPR' },
+  { date: '2026-03-02', time: '12:00 AM', type: 'military', text: 'Israel bombs Beirut at 3 AM local; issues evacuation orders to 50+ villages', source: 'Al Jazeera' },
+  // March 1, 2026 (Day 2)
+  { date: '2026-03-01', time: '2:00 PM', type: 'critical', text: 'Iran confirms Khamenei\'s death; 40 days of mourning declared; celebrations in some cities', source: 'NPR' },
+  // February 28, 2026 (Day 1)
+  { date: '2026-02-28', time: '5:00 PM', type: 'critical', text: 'Operation Epic Fury / Roaring Lion: US-Israel launch ~900 strikes in 12 hours on Iran', source: 'Army Recognition' },
+  { date: '2026-02-28', time: '2:00 PM', type: 'critical', text: 'Supreme Leader Ali Khamenei killed in Israeli airstrike on Tehran compound', source: 'NPR' },
+  { date: '2026-02-28', time: '10:00 AM', type: 'military', text: 'Houthis announce plans to resume Red Sea attacks in solidarity with Iran', source: 'AP' },
+  // February 24, 2026 (Pre-war)
+  { date: '2026-02-24', time: '9:00 AM', type: 'military', text: '12 F-22s deployed to Ovda Airbase, Israel; first US offensive weapons on Israeli soil', source: 'Military.com' },
+  { date: '2026-02-24', time: '6:00 AM', type: 'diplomatic', text: 'Iran rejects nuclear deal terms; IAEA confirms 408.6 kg of 60% enriched uranium stockpile', source: 'IAEA' },
 ];
 
 function renderEvents() {
@@ -2366,7 +2369,7 @@ function renderEvents() {
 
     html += `<div class="ev-item ${ev.type}">
       <div class="ev-dot"></div>
-      <div class="ev-date">${ev.time} UTC</div>
+      <div class="ev-date">${ev.time} PT</div>
       <div class="ev-text">${ev.text}</div>
       <div class="ev-source">&mdash; ${ev.source}</div>
     </div>`;
