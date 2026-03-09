@@ -2359,9 +2359,11 @@ function renderEvents() {
   let lastDate = '';
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   EVENTS.forEach(ev => {
     const parts = ev.date.split('-');
-    const dateStr = months[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10) + ', ' + parts[0];
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    const dateStr = days[d.getDay()] + ', ' + months[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10) + ', ' + parts[0];
 
     if (dateStr !== lastDate) {
       html += `<div class="ev-date-divider">${dateStr}</div>`;
