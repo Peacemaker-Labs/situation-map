@@ -204,9 +204,7 @@
     z-index: 10;
     transform: translate(-50%, -100%);
     transition: opacity 0.15s, transform 0.15s;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(0,0,0,0.75);
     padding: 4px 8px 4px 8px;
     border-radius: 5px;
     border: 1px solid rgba(255,255,255,0.06);
@@ -251,8 +249,6 @@
     left: 20px;
     width: 340px;
     background: rgba(8,8,13,0.95);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 12px;
     padding: 20px;
@@ -537,8 +533,6 @@
     right: 340px;
     z-index: 200;
     background: rgba(8,8,13,0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
     border: 1px solid #1a1a28;
     border-radius: 10px;
     padding: 12px 14px;
@@ -622,8 +616,6 @@
     z-index: 6;
     transform: translate(-50%, 8px);
     background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
     padding: 4px 8px;
     border-radius: 6px;
     border: 1px solid rgba(255,255,255,0.06);
@@ -689,8 +681,6 @@
     border: 1px solid #1a1a28;
     border-radius: 10px;
     overflow: hidden;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
   }
   #events-feed .ef-header {
     display: flex;
@@ -1721,7 +1711,7 @@ function initGlobe() {
   };
 
   // Canvas texture dimensions
-  const CW = 4096, CH = 2048;
+  const CW = 2048, CH = 1024;
   let darkCanvas, lightCanvas;
 
   // Equirectangular projection helpers
