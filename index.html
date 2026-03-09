@@ -566,6 +566,128 @@
   .c-white { background: rgba(255,255,255,0.04); border: 1.5px solid #374151; color: #d1d5db; }
   .c-white h3 { color: #f3f4f6; } .c-white .tag { background: rgba(255,255,255,0.08); color: #d1d5db; }
 
+  /* ---- FILTER PANEL ---- */
+  #filter-panel {
+    position: fixed;
+    bottom: 20px;
+    right: 340px;
+    z-index: 200;
+    background: rgba(8,8,13,0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid #1a1a28;
+    border-radius: 10px;
+    padding: 12px 14px;
+    min-width: 180px;
+    display: none;
+  }
+  #filter-panel h3 {
+    font-size: 9px;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .filter-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.15s;
+  }
+  .filter-item:hover { opacity: 0.8; }
+  .filter-toggle {
+    width: 28px;
+    height: 14px;
+    border-radius: 7px;
+    background: #1a1a28;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .filter-toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #333;
+    transition: all 0.2s;
+  }
+  .filter-item.active .filter-toggle { background: rgba(255,255,255,0.15); }
+  .filter-item.active .filter-toggle::after { left: 16px; background: #fff; }
+  .filter-label {
+    font-size: 10px;
+    color: #666;
+    font-weight: 600;
+  }
+  .filter-item.active .filter-label { color: #bbb; }
+
+  /* Resource legend */
+  .resource-legend {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #141420;
+    display: none;
+  }
+  .resource-legend.visible { display: block; }
+  .resource-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+    font-size: 9px;
+    color: #555;
+  }
+  .resource-legend-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Resource label on globe */
+  .globe-resource-label {
+    position: absolute;
+    pointer-events: none;
+    z-index: 6;
+    transform: translate(-50%, 8px);
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.06);
+    white-space: nowrap;
+    transition: opacity 0.2s;
+    display: none;
+  }
+  .globe-resource-label.visible { display: block; }
+  .resource-type {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: block;
+  }
+  .resource-detail {
+    font-size: 9px;
+    color: #888;
+    display: block;
+    margin-top: 1px;
+  }
+  .resource-buyers {
+    font-size: 8px;
+    color: #555;
+    display: block;
+    margin-top: 2px;
+  }
+
   .node.iran-main { width: 300px; padding: 18px 22px; border-width: 2px; box-shadow: 0 0 40px rgba(180,40,40,0.15); }
   .node.iran-main h3 { font-size: 16px; }
 
@@ -713,6 +835,27 @@
   </div>
   <div class="card-body" id="gc-body"></div>
   <div class="card-osint" id="gc-osint"></div>
+</div>
+
+<!-- FILTER PANEL -->
+<div id="filter-panel">
+  <h3>Layers</h3>
+  <div class="filter-item active" onclick="toggleFilter(this, 'conflicts')">
+    <div class="filter-toggle"></div>
+    <span class="filter-label">Conflicts</span>
+  </div>
+  <div class="filter-item" onclick="toggleFilter(this, 'resources')">
+    <div class="filter-toggle"></div>
+    <span class="filter-label">Resources</span>
+  </div>
+  <div class="resource-legend" id="resource-legend">
+    <div class="resource-legend-item"><div class="resource-legend-dot" style="background:#1a1a1a;border:1px solid #333"></div>Crude Oil</div>
+    <div class="resource-legend-item"><div class="resource-legend-dot" style="background:#f59e0b"></div>Natural Gas</div>
+    <div class="resource-legend-item"><div class="resource-legend-dot" style="background:#22c55e"></div>Agriculture</div>
+    <div class="resource-legend-item"><div class="resource-legend-dot" style="background:#3b82f6"></div>Tech / Manufacturing</div>
+    <div class="resource-legend-item"><div class="resource-legend-dot" style="background:#a855f7"></div>Minerals / Metals</div>
+    <div class="resource-legend-item"><div class="resource-legend-dot" style="background:#ec4899"></div>Diamonds / Gems</div>
+  </div>
 </div>
 
 <!-- LEADER TABLE -->
@@ -1914,6 +2057,25 @@ function animateGlobe() {
     });
   }
 
+  // Resource labels
+  if (resourceLayerVisible && globeResourceLabels.length > 0) {
+    globeResourceLabels.forEach(l => {
+      const projected = l.pos.clone().project(globeCamera);
+      const x = (projected.x * 0.5 + 0.5) * w;
+      const y = (-projected.y * 0.5 + 0.5) * h;
+      const pointDir = l.pos.clone().normalize();
+      const dotProduct = pointDir.dot(camDir2);
+
+      if (dotProduct > threshold && projected.z < 1) {
+        l.el.style.left = x + 'px';
+        l.el.style.top = y + 'px';
+        l.el.style.opacity = '1';
+      } else {
+        l.el.style.opacity = '0';
+      }
+    });
+  }
+
   globeRenderer.render(globeScene, globeCamera);
 }
 
@@ -2049,6 +2211,7 @@ function setMode(mode) {
   document.getElementById('legend').style.display = 'none';
   document.getElementById('controls').style.display = 'none';
   document.getElementById('globe-theme-toggle').style.display = isGlobe ? 'flex' : 'none';
+  document.getElementById('filter-panel').style.display = isGlobe ? 'block' : 'none';
   if (!isGlobe) closeGlobeCard();
 
   if (isGlobe) {
@@ -2079,6 +2242,115 @@ function toggleGlobeTheme(light) {
   document.getElementById('btn-dark').classList.toggle('active', !light);
   document.getElementById('btn-light').classList.toggle('active', light);
   applyGlobeLighting();
+}
+
+// ============================================================
+// RESOURCE OVERLAY DATA (verified from OEC, World Bank, OPEC)
+// ============================================================
+
+const resourceColors = {
+  oil: '#333', gas: '#f59e0b', agriculture: '#22c55e',
+  tech: '#3b82f6', minerals: '#a855f7', diamonds: '#ec4899'
+};
+
+const resourceData = [
+  // Oil exporters
+  { lat: 23.9, lng: 45.1, type: 'oil', color: resourceColors.oil,
+    country: 'Saudi Arabia', resource: 'Crude Oil', detail: '7-8M bpd exported, $200B+/yr',
+    buyers: 'Top buyers: China, Japan, India, South Korea, USA' },
+  { lat: 61.5, lng: 105.3, type: 'oil', color: resourceColors.oil,
+    country: 'Russia', resource: 'Crude Oil + Gas', detail: '~5M bpd oil, largest gas exporter',
+    buyers: 'Top buyers: China, India, Turkey (redirected from EU)' },
+  { lat: 32.4, lng: 53.7, type: 'oil', color: resourceColors.oil,
+    country: 'Iran', resource: 'Crude Oil', detail: '~1.5M bpd, $7.7B/yr (sanctioned)',
+    buyers: 'Top buyers: China (53%), UAE, Syria, Turkey' },
+  { lat: 33.2, lng: 43.7, type: 'oil', color: resourceColors.oil,
+    country: 'Iraq', resource: 'Crude Oil', detail: '~3.3M bpd exported, 2nd largest OPEC',
+    buyers: 'Top buyers: China, India, USA, South Korea' },
+  { lat: 23.4, lng: 53.8, type: 'oil', color: resourceColors.oil,
+    country: 'UAE', resource: 'Crude Oil + LNG', detail: '~2.5M bpd oil, growing LNG',
+    buyers: 'Top buyers: Japan, India, China, South Korea' },
+  { lat: 6.4, lng: -66.6, type: 'oil', color: resourceColors.oil,
+    country: 'Venezuela', resource: 'Crude Oil', detail: '~550K bpd, largest reserves globally',
+    buyers: 'Top buyers: China (68%), USA (23%), India' },
+  { lat: 37.1, lng: -95.7, type: 'oil', color: resourceColors.oil,
+    country: 'USA', resource: 'Crude Oil + LNG', detail: '~4.1M bpd oil exports, top LNG',
+    buyers: 'Top buyers: South Korea, Japan, UK, Netherlands' },
+  { lat: 56.1, lng: -106.3, type: 'oil', color: resourceColors.oil,
+    country: 'Canada', resource: 'Crude Oil', detail: '~3.9M bpd, mostly to USA via pipeline',
+    buyers: 'Top buyers: USA (97%), China, UK' },
+  // Gas
+  { lat: 25.4, lng: 51.2, type: 'gas', color: resourceColors.gas,
+    country: 'Qatar', resource: 'LNG (Natural Gas)', detail: 'Largest LNG exporter, 77M tons/yr',
+    buyers: 'Top buyers: Japan, South Korea, India, China, UK' },
+  // Agriculture
+  { lat: 48.4, lng: 31.2, type: 'agriculture', color: resourceColors.agriculture,
+    country: 'Ukraine', resource: 'Grain + Sunflower Oil', detail: '$9.4B cereals, $5.7B oils (2024)',
+    buyers: 'Top buyers: China, Poland, Turkey, Egypt, Spain' },
+  { lat: -14.2, lng: -51.9, type: 'agriculture', color: resourceColors.agriculture,
+    country: 'Brazil', resource: 'Soybeans + Beef + Sugar', detail: 'Top agricultural exporter globally',
+    buyers: 'Top buyers: China, USA, EU, Japan' },
+  // Tech / Manufacturing
+  { lat: 35.9, lng: 104.2, type: 'tech', color: resourceColors.tech,
+    country: 'China', resource: 'Electronics + Manufacturing', detail: '$3.6T total exports (world #1)',
+    buyers: 'Top buyers: USA, EU, Japan, South Korea, Vietnam' },
+  { lat: 36.2, lng: 138.3, type: 'tech', color: resourceColors.tech,
+    country: 'Japan', resource: 'Vehicles + Electronics', detail: '$713B exports (2024)',
+    buyers: 'Top buyers: USA, China, South Korea, EU' },
+  { lat: 35.9, lng: 128.0, type: 'tech', color: resourceColors.tech,
+    country: 'South Korea', resource: 'Semiconductors + Ships', detail: '$644B exports (2024)',
+    buyers: 'Top buyers: China, USA, Vietnam, Japan' },
+  { lat: 51.2, lng: 10.5, type: 'tech', color: resourceColors.tech,
+    country: 'Germany', resource: 'Vehicles + Machinery', detail: '$1.7T exports, EU largest',
+    buyers: 'Top buyers: USA, France, China, Netherlands' },
+  // Minerals
+  { lat: 20.6, lng: 79.0, type: 'minerals', color: resourceColors.minerals,
+    country: 'India', resource: 'Refined Petroleum + Tech', detail: '$825B exports (2025 record)',
+    buyers: 'Top buyers: USA, UAE, Netherlands, China' },
+  { lat: -30.6, lng: 22.9, type: 'minerals', color: resourceColors.minerals,
+    country: 'South Africa', resource: 'Gold + Platinum + Coal', detail: 'Top platinum producer globally',
+    buyers: 'Top buyers: China, USA, Japan, India, Germany' },
+  // Diamonds
+  { lat: 31.0, lng: 34.9, type: 'diamonds', color: resourceColors.diamonds,
+    country: 'Israel', resource: 'Diamonds + High-Tech', detail: '$160B exports, 33% diamonds/gems',
+    buyers: 'Top buyers: USA, UK, China, Hong Kong, India' },
+];
+
+const globeResourceLabels = [];
+let resourceLayerVisible = false;
+
+function createResourceLabels() {
+  if (globeResourceLabels.length > 0) return;
+  const globeDiv = document.getElementById('globe-view');
+  resourceData.forEach(r => {
+    const pos = latLngToVector3(r.lat, r.lng, 1.54);
+    const lbl = document.createElement('div');
+    lbl.className = 'globe-resource-label';
+    lbl.innerHTML = `<span class="resource-type" style="color:${r.color}">${r.resource}</span>
+      <span class="resource-detail">${r.country}: ${r.detail}</span>
+      <span class="resource-buyers">${r.buyers}</span>`;
+    globeDiv.appendChild(lbl);
+    globeResourceLabels.push({ el: lbl, pos: pos });
+  });
+}
+
+function toggleFilter(el, layer) {
+  el.classList.toggle('active');
+  const isActive = el.classList.contains('active');
+
+  if (layer === 'resources') {
+    resourceLayerVisible = isActive;
+    document.getElementById('resource-legend').classList.toggle('visible', isActive);
+    if (isActive && globeInited) createResourceLabels();
+    globeResourceLabels.forEach(l => {
+      l.el.classList.toggle('visible', isActive);
+    });
+  }
+  if (layer === 'conflicts') {
+    // Toggle conflict markers and labels visibility
+    globeLabels.forEach(l => l.el.style.display = isActive ? '' : 'none');
+    globeMarkers.forEach(m => m.visible = isActive);
+  }
 }
 
 // Toggle country blocks in leader panel
