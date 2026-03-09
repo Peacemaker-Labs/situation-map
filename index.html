@@ -818,7 +818,10 @@
     <div class="feed-live" title="Live"></div>
   </div>
   <div class="feed-body" id="osint-feed-body">
-    <a class="twitter-timeline" data-theme="dark" data-chrome="noheader nofooter noborders transparent noscrollbar" data-tweet-limit="3" data-width="320" data-dnt="true" href="https://twitter.com/sentdefender?ref_src=twsrc%5Etfw">Loading @sentdefender...</a>
+    <iframe src="https://syndication.twitter.com/srv/timeline-profile/screen-name/sentdefender?dnt=true&embedId=osint-feed&features=eyJ0ZndfdGltZWxpbmVfbGlzdCI6eyJidWNrZXQiOltdLCJ2ZXJzaW9uIjpudWxsfSwidGZ3X2ZvbGxvd2VyX2NvdW50X3N1bnNldCI6eyJidWNrZXQiOnRydWUsInZlcnNpb24iOm51bGx9fQ%3D%3D&frame=false&hideBorder=true&hideFooter=true&hideHeader=true&hideScrollBar=true&lang=en&maxHeight=380px&origin=https%3A%2F%2Fpeacemaker-labs.github.io&showHeader=false&showReplies=false&theme=dark&transparent=true&tweetLimit=3&widgetId=osint"
+      style="width:100%;height:380px;border:none;overflow:hidden;background:transparent;"
+      sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"
+      loading="lazy"></iframe>
   </div>
   <div class="feed-footer">
     <a href="https://x.com/sentdefender" target="_blank">Follow @sentdefender on X</a>
@@ -2285,17 +2288,6 @@ function toggleCountry(header) {
   const block = header.parentElement;
   block.classList.toggle('expanded');
 }
-
-// Initialize live OSINT feed - twttr.widgets.load() processes the anchor tag
-window.twttr = (function(d, s, id) {
-  var js, fjs = d.getElementsByTagName(s)[0], t = window.twttr || {};
-  if (d.getElementById(id)) return t;
-  js = d.createElement(s); js.id = id;
-  js.src = "https://platform.twitter.com/widgets.js";
-  fjs.parentNode.insertBefore(js, fjs);
-  t._e = []; t.ready = function(f) { t._e.push(f); };
-  return t;
-}(document, "script", "twitter-wjs"));
 
 // Default to globe mode on load
 let currentModeInit = 'globe';
