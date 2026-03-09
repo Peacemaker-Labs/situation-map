@@ -309,41 +309,6 @@
     cursor: pointer;
   }
   #globe-card .card-close:hover { color: #aaa; }
-  #globe-card .card-osint {
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px solid rgba(255,255,255,0.06);
-  }
-  #globe-card .osint-header {
-    font-size: 9px;
-    color: #333;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    font-weight: 700;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  #globe-card .osint-header svg { width: 12px; height: 12px; fill: #333; }
-  #globe-card .osint-loading {
-    font-size: 10px;
-    color: #333;
-    padding: 8px 0;
-  }
-  #globe-card .card-osint .twitter-tweet { margin: 0 !important; }
-  #globe-card .card-osint iframe { border-radius: 8px !important; }
-  .osint-more {
-    display: inline-block;
-    font-size: 9px;
-    color: #1d9bf0;
-    text-decoration: none;
-    margin-top: 6px;
-    opacity: 0.7;
-    transition: opacity 0.15s;
-  }
-  .osint-more:hover { opacity: 1; }
-
   /* ---- LEADER TABLE ---- */
   #leader-panel {
     position: fixed;
@@ -707,14 +672,69 @@
 
   #hud {
     position: fixed;
-    top: 20px;
-    left: 20px;
+    top: 12px;
+    left: 16px;
     z-index: 200;
     pointer-events: none;
   }
   #hud h1 { font-size: 22px; color: #fff; font-weight: 800; letter-spacing: 5px; text-transform: uppercase; }
-  #hud { top: 12px; left: 16px; }
   #hud .sub { font-size: 11px; color: #444; margin-top: 4px; max-width: 500px; line-height: 1.5; }
+
+  #osint-feed {
+    position: fixed;
+    top: 46px;
+    left: 16px;
+    z-index: 190;
+    width: 320px;
+    background: rgba(8,8,13,0.85);
+    border: 1px solid #1a1a28;
+    border-radius: 10px;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  #osint-feed .feed-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #1a1a28;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #555;
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+  }
+  #osint-feed .feed-header svg { width: 12px; height: 12px; fill: #555; }
+  #osint-feed .feed-header .feed-live {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: #22c55e; margin-left: auto;
+    animation: livePulse 2s infinite;
+  }
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 3px #22c55e; }
+    50% { opacity: 0.4; box-shadow: none; }
+  }
+  #osint-feed .feed-body {
+    max-height: 380px;
+    overflow-y: auto;
+    transition: max-height 0.3s ease;
+  }
+  #osint-feed .feed-body::-webkit-scrollbar { width: 3px; }
+  #osint-feed .feed-body::-webkit-scrollbar-thumb { background: #1a1a2a; border-radius: 2px; }
+  #osint-feed.collapsed .feed-body { max-height: 0; overflow: hidden; }
+  #osint-feed .feed-footer {
+    padding: 6px 12px;
+    border-top: 1px solid #1a1a28;
+    text-align: center;
+  }
+  #osint-feed .feed-footer a {
+    font-size: 9px; color: #444; text-decoration: none;
+    letter-spacing: 0.5px;
+  }
+  #osint-feed .feed-footer a:hover { color: #888; }
 
   #legend {
     position: fixed;
@@ -792,6 +812,18 @@
   <h1>SITUATION MAP</h1>
 </div>
 
+<div id="osint-feed">
+  <div class="feed-header" onclick="document.getElementById('osint-feed').classList.toggle('collapsed')">
+    <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    OSINT FEED &mdash; @sentdefender
+    <div class="feed-live" title="Live"></div>
+  </div>
+  <div class="feed-body" id="osint-feed-body"></div>
+  <div class="feed-footer">
+    <a href="https://x.com/sentdefender" target="_blank">Follow @sentdefender on X</a>
+  </div>
+</div>
+
 <div id="mode-toggle">
   <button id="btn-network" onclick="setMode('network')">Network</button>
   <button id="btn-globe" class="active" onclick="setMode('globe')">Globe</button>
@@ -834,7 +866,6 @@
     <div class="card-tag" id="gc-tag"></div>
   </div>
   <div class="card-body" id="gc-body"></div>
-  <div class="card-osint" id="gc-osint"></div>
 </div>
 
 <!-- FILTER PANEL -->
@@ -2077,85 +2108,6 @@ function animateGlobe() {
 // ============================================================
 
 // Globe card popup
-// X/OSINT search queries per entity for live embedded timeline
-// Real verified tweet IDs from OSINT accounts (verified via web search March 2026)
-// Using blockquote embed method which works on any live domain
-const osintTweetIds = {
-  'iran': [
-    '2027709031834362117',  // @sentdefender - Iran retaliatory ballistic missile attacks on US bases
-    '2027736491800043618',  // @sentdefender - IRGC General: missiles are "from the back of the stockpile"
-    '2027880940412735547',  // @sentdefender - Iranians cheering in Isfahan after Khamenei elimination
-  ],
-  'irgc': [
-    '2027736491800043618',  // @sentdefender - IRGC General Jabbari warning to US
-    '2007922739898888552',  // @sentdefender - IRGC nationwide missile & air-defense exercise
-    '2027709031834362117',  // @sentdefender - Iran retaliatory strikes on US bases
-  ],
-  'nukes': [
-    '2029481256530976899',  // @Osint613 - Iran ready to abandon nuclear program
-    '2029185721462825141',  // @sentdefender - IAF targeted air defenses at Mehrabad Airport
-  ],
-  'epicfury': [
-    '2028666605874393171',  // @sentdefender - CVW-9 aircraft launch from USS Lincoln
-    '2027897830614966520',  // @sentdefender - Hegseth: "most lethal aerial operation in history"
-    '2028355347425927614',  // @sentdefender - USS Petersen firing Tomahawks at Iran
-  ],
-  'hormuz': [
-    '2028355347425927614',  // @sentdefender - USS Petersen Tomahawk strikes
-    '2028666605874393171',  // @sentdefender - CVW-9 ops from USS Lincoln, Arabian Sea
-  ],
-  'redsea': [
-    '1975588921846419794',  // @sentdefender - Houthi attack drones shot down over Eilat
-    '1749922115816427869',  // @sentdefender - Iran-backed militia calls for "Next Phase"
-  ],
-  'hezbollah': [
-    '1749922115816427869',  // @sentdefender - Kata'ib leader calls for Iran/Hezbollah/Houthi ops
-    '2027631478658535499',  // @sentdefender - Tehran explosions, preemptive Israeli strikes
-  ],
-  'houthis': [
-    '1975588921846419794',  // @sentdefender - Houthi drones shot down over Eilat
-    '1749922115816427869',  // @sentdefender - "Next Phase of Operations" call
-  ],
-  'hamas': [
-    '2027631478658535499',  // @sentdefender - Israeli preemptive strikes, Tehran footage
-    '2028256555838124127',  // @sentdefender - Explosions across Iranian cities, IAF strikes
-  ],
-  'syria': [
-    '2028320649786085794',  // @sentdefender - Baghdad Green Zone clashes, pro-Iran demonstrators
-  ],
-  'trump': [
-    '2027871888656199897',  // @sentdefender - VP Vance & Cabinet in Situation Room for Epic Fury
-    '2027897830614966520',  // @sentdefender - Hegseth statement on Epic Fury
-    '2028517685089206291',  // @Osint613 - Trump on Iran: projected 4-5 weeks
-  ],
-  'israel': [
-    '2027830271081328718',  // @sentdefender - Khamenei killed in Israeli airstrike
-    '2027631478658535499',  // @sentdefender - Israel preemptive strikes on Tehran
-    '2029185721462825141',  // @sentdefender - IAF targets Mehrabad Airport defenses
-  ],
-  'china': [
-    '2027709031834362117',  // @sentdefender - Iran retaliatory strikes (China-aligned)
-  ],
-  'russia': [
-    '2028256555838124127',  // @sentdefender - Explosions across Iranian cities
-  ],
-  'ukraine': [
-    '2028256555838124127',  // @sentdefender - Multi-city strikes parallel Ukraine escalation
-  ],
-  'iraq': [
-    '2028320649786085794',  // @sentdefender - Baghdad Green Zone clashes
-    '2027709031834362117',  // @sentdefender - Iran strikes on US bases in Iraq
-  ],
-  'saudi': [
-    '2027709031834362117',  // @sentdefender - Iran strikes on bases in Saudi Arabia
-  ],
-  'usmilitary': [
-    '2028666605874393171',  // @sentdefender - CVW-9 launch from USS Lincoln
-    '2028355347425927614',  // @sentdefender - USS Petersen Tomahawk strikes
-    '2027871888656199897',  // @sentdefender - Situation Room monitoring Epic Fury
-  ],
-};
-
 function showGlobeCard(n) {
   const card = document.getElementById('globe-card');
   document.getElementById('gc-dot').style.background = n.gc;
@@ -2166,50 +2118,6 @@ function showGlobeCard(n) {
   tag.style.background = n.gc + '22';
   tag.style.color = n.gc;
   document.getElementById('gc-body').textContent = n.sub;
-
-  // Populate OSINT feed
-  const osintEl = document.getElementById('gc-osint');
-  const searchQuery = encodeURIComponent(`${n.title} (from:sentdefender OR from:OSINTdefender OR from:Osint613)`);
-  const tweetIds = osintTweetIds[n.id] || [];
-
-  osintEl.innerHTML = `
-    <div class="osint-header">
-      <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-      OSINT FEED
-    </div>
-    <div id="osint-embed-container"></div>
-    <a class="osint-more" href="https://x.com/search?q=${searchQuery}&f=live" target="_blank">View live on X &#8594;</a>
-  `;
-
-  const embedContainer = document.getElementById('osint-embed-container');
-
-  if (tweetIds.length === 0) {
-    embedContainer.innerHTML = '<div style="font-size:10px;color:#555;padding:8px 0;">No OSINT tweets indexed for this entity. <a href="https://x.com/search?q=' + searchQuery + '&f=live" target="_blank" style="color:#1d9bf0">Search on X</a></div>';
-    card.classList.add('visible');
-    return;
-  }
-
-  // Use blockquote embed method (works reliably on any live domain)
-  tweetIds.slice(0, 3).forEach(id => {
-    const wrapper = document.createElement('div');
-    wrapper.style.marginBottom = '8px';
-    wrapper.innerHTML = `<blockquote class="twitter-tweet" data-theme="dark" data-width="300" data-conversation="none"><a href="https://x.com/i/status/${id}"></a></blockquote>`;
-    embedContainer.appendChild(wrapper);
-  });
-
-  // Process the blockquotes into rendered tweets
-  if (window.twttr && twttr.widgets) {
-    twttr.widgets.load(embedContainer);
-  } else {
-    // Widget.js not loaded yet, wait for it
-    const iv = setInterval(() => {
-      if (window.twttr && twttr.widgets) {
-        twttr.widgets.load(embedContainer);
-        clearInterval(iv);
-      }
-    }, 300);
-    setTimeout(() => clearInterval(iv), 8000);
-  }
 
   card.classList.add('visible');
 }
@@ -2375,6 +2283,38 @@ function toggleFilter(el, layer) {
 function toggleCountry(header) {
   const block = header.parentElement;
   block.classList.toggle('expanded');
+}
+
+// Initialize live OSINT feed from @sentdefender
+function initOsintFeed() {
+  const container = document.getElementById('osint-feed-body');
+  if (!container) return;
+  if (window.twttr && twttr.widgets) {
+    twttr.widgets.createTimeline(
+      { sourceType: 'profile', screenName: 'sentdefender' },
+      container,
+      { theme: 'dark', chrome: 'noheader nofooter noborders transparent noscrollbar', height: 380, tweetLimit: 3, width: 300, dnt: true }
+    ).catch(() => {
+      container.innerHTML = '<div style="padding:12px;font-size:11px;color:#444;">Could not load feed. <a href="https://x.com/sentdefender" target="_blank" style="color:#1d9bf0;">View on X</a></div>';
+    });
+  } else {
+    const iv = setInterval(() => {
+      if (window.twttr && twttr.widgets) {
+        clearInterval(iv);
+        initOsintFeed();
+      }
+    }, 500);
+    setTimeout(() => {
+      clearInterval(iv);
+      container.innerHTML = '<div style="padding:12px;font-size:11px;color:#444;">Feed unavailable. <a href="https://x.com/sentdefender" target="_blank" style="color:#1d9bf0;">View on X</a></div>';
+    }, 10000);
+  }
+}
+// Load feed on page ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initOsintFeed);
+} else {
+  initOsintFeed();
 }
 
 // Default to globe mode on load
