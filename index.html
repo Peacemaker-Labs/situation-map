@@ -1,0 +1,2091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Situation Map</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #08080d;
+    color: #e0e0e0;
+    font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ---- MODE TOGGLE ---- */
+  #mode-toggle {
+    position: fixed;
+    top: 20px;
+    right: 340px;
+    z-index: 200;
+    display: flex;
+    background: rgba(8,8,13,0.9);
+    border: 1px solid #1a1a28;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  #mode-toggle button {
+    background: none;
+    border: none;
+    color: #444;
+    padding: 8px 16px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  #mode-toggle button.active {
+    background: rgba(255,255,255,0.08);
+    color: #ccc;
+  }
+  #mode-toggle button:hover:not(.active) { color: #888; }
+
+  /* ---- NETWORK VIEW (Grid Layout) ---- */
+  #network-view {
+    position: absolute;
+    top: 0; left: 0; right: 320px; bottom: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 80px 30px 40px;
+  }
+  #network-view::-webkit-scrollbar { width: 4px; }
+  #network-view::-webkit-scrollbar-track { background: transparent; }
+  #network-view::-webkit-scrollbar-thumb { background: #1a1a2a; border-radius: 2px; }
+
+  .net-tier {
+    margin-bottom: 28px;
+  }
+  .net-tier-label {
+    font-size: 9px;
+    color: #2a2a3a;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    padding-left: 4px;
+  }
+  .net-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+  }
+
+  .net-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid #141420;
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .net-card:hover {
+    border-color: #222238;
+    background: rgba(255,255,255,0.04);
+  }
+  .net-card.active {
+    border-color: rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    box-shadow: 0 0 20px rgba(255,255,255,0.03);
+  }
+  .net-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .net-card-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .net-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ccc;
+    flex: 1;
+  }
+  .net-card .net-tag {
+    font-size: 8px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .net-card .net-sub {
+    font-size: 11px;
+    color: #555;
+    line-height: 1.55;
+  }
+  .net-card .net-connections {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #141420;
+  }
+  .net-card.active .net-connections {
+    display: block;
+  }
+  .net-conn-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    font-size: 10px;
+    color: #666;
+  }
+  .net-conn-arrow {
+    font-size: 8px;
+    color: #333;
+  }
+  .net-conn-label {
+    color: #444;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .net-conn-target {
+    color: #888;
+    font-weight: 600;
+  }
+
+  /* Hide old SVG and absolute-positioned elements in network */
+  svg#lines { display: none; }
+  #network { display: none; }
+
+  /* ---- GLOBE VIEW ---- */
+  #globe-view {
+    position: absolute;
+    top: 0; left: 0; right: 320px; bottom: 0;
+    display: none;
+  }
+  #globe-view canvas { display: block; }
+
+  .globe-country-label {
+    position: absolute;
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.18);
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 5;
+    transform: translate(-50%, -50%);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    transition: opacity 0.15s;
+  }
+  .globe-country-label.key-country {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.28);
+    letter-spacing: 3px;
+  }
+
+  .globe-label {
+    position: absolute;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    pointer-events: auto;
+    cursor: pointer;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    white-space: nowrap;
+    z-index: 10;
+    transform: translate(-50%, -100%);
+    transition: opacity 0.15s, transform 0.15s;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 4px 8px 4px 8px;
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-top: -12px;
+  }
+  .globe-label:hover {
+    transform: translate(-50%, -100%) scale(1.05);
+    border-color: rgba(255,255,255,0.15);
+  }
+  .globe-label .gl-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+  }
+  .globe-label .gl-sub {
+    font-size: 8px;
+    font-weight: 400;
+    opacity: 0.45;
+    display: block;
+    text-align: center;
+    margin-top: 1px;
+  }
+  .globe-label .gl-stem {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    width: 1px;
+    height: 8px;
+    background: rgba(255,255,255,0.15);
+    transform: translateX(-50%);
+  }
+
+  /* Globe popup card */
+  #globe-card {
+    position: fixed;
+    bottom: 60px;
+    left: 20px;
+    width: 340px;
+    background: rgba(8,8,13,0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 20px;
+    z-index: 200;
+    display: none;
+    animation: cardSlideUp 0.2s ease-out;
+  }
+  @keyframes cardSlideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  #globe-card.visible { display: block; }
+  #globe-card .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  #globe-card .card-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  #globe-card .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+  }
+  #globe-card .card-tag {
+    font-size: 8px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 700;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  #globe-card .card-body {
+    font-size: 12px;
+    color: #888;
+    line-height: 1.6;
+  }
+  #globe-card .card-close {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    background: none;
+    border: none;
+    color: #444;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  #globe-card .card-close:hover { color: #aaa; }
+  #globe-card .card-osint {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  #globe-card .osint-header {
+    font-size: 9px;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  #globe-card .osint-header svg { width: 12px; height: 12px; fill: #333; }
+  #globe-card .osint-loading {
+    font-size: 10px;
+    color: #333;
+    padding: 8px 0;
+  }
+  #globe-card .card-osint .twitter-tweet { margin: 0 !important; }
+  #globe-card .card-osint iframe { border-radius: 8px !important; }
+  .osint-more {
+    display: inline-block;
+    font-size: 9px;
+    color: #1d9bf0;
+    text-decoration: none;
+    margin-top: 6px;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+  .osint-more:hover { opacity: 1; }
+
+  /* ---- LEADER TABLE ---- */
+  #leader-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 320px;
+    height: 100vh;
+    background: rgba(8,8,13,0.97);
+    border-left: 1px solid #151520;
+    z-index: 150;
+    overflow-y: auto;
+    padding: 20px 16px;
+  }
+  #leader-panel::-webkit-scrollbar { width: 4px; }
+  #leader-panel::-webkit-scrollbar-track { background: transparent; }
+  #leader-panel::-webkit-scrollbar-thumb { background: #1a1a2a; border-radius: 2px; }
+
+  #leader-panel h2 {
+    font-size: 12px;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #151520;
+  }
+  .country-block {
+    margin-bottom: 6px;
+    border: 1px solid #141420;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .country-block:hover { border-color: #1e1e30; }
+  .country-block.expanded { border-color: rgba(255,255,255,0.08); }
+  .country-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    user-select: none;
+  }
+  .country-header:hover { background: rgba(255,255,255,0.02); }
+  .country-flag {
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .country-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #ccc;
+    flex: 1;
+    letter-spacing: 0.3px;
+  }
+  .country-count {
+    font-size: 9px;
+    color: #333;
+    background: rgba(255,255,255,0.04);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+  .country-chevron {
+    color: #333;
+    font-size: 10px;
+    transition: transform 0.2s;
+  }
+  .country-block.expanded .country-chevron { transform: rotate(90deg); }
+  .country-body {
+    display: none;
+    padding: 0 10px 10px;
+  }
+  .country-block.expanded .country-body { display: block; }
+  .leader-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 5px;
+    margin-bottom: 2px;
+    transition: background 0.15s;
+    cursor: default;
+  }
+  .leader-card:hover { background: rgba(255,255,255,0.03); }
+  .leader-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .leader-info h4 {
+    font-size: 11px;
+    font-weight: 600;
+    color: #bbb;
+    margin-bottom: 1px;
+  }
+  .leader-info .leader-role {
+    font-size: 9.5px;
+    color: #4a4a5a;
+    line-height: 1.4;
+  }
+  .leader-info .leader-status {
+    font-size: 8px;
+    margin-top: 3px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    display: inline-block;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .status-dead { background: rgba(180,40,40,0.2); color: #f87171; }
+  .status-new { background: rgba(234,179,8,0.15); color: #fde68a; }
+  .status-active { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+  .status-failed { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+  .status-weakened { background: rgba(234,88,12,0.15); color: #fdba74; }
+  .status-opposition { background: rgba(59,130,246,0.15); color: #93c5fd; }
+  .status-hawkish { background: rgba(239,68,68,0.15); color: #fca5a5; }
+  .status-diplomatic { background: rgba(168,85,247,0.15); color: #d8b4fe; }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-bottom: 1px solid #0d0d15;
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { font-size: 10px; color: #444; }
+  .stat-value { font-size: 10px; color: #999; font-weight: 600; }
+
+  .stats-block {
+    margin-bottom: 4px;
+    border: 1px solid #141420;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .stats-block:first-of-type { margin-top: 12px; }
+  .stats-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .stats-header:hover { background: rgba(255,255,255,0.02); }
+  .stats-header h3 {
+    font-size: 9px;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 700;
+    flex: 1;
+    margin: 0;
+  }
+  .stats-chevron {
+    color: #333;
+    font-size: 10px;
+    transition: transform 0.2s;
+  }
+  .stats-block.expanded .stats-chevron { transform: rotate(90deg); }
+  .stats-body {
+    display: none;
+    padding: 0 8px 8px;
+  }
+  .stats-block.expanded .stats-body { display: block; }
+
+  /* ---- NODES ---- */
+  .node {
+    position: absolute;
+    border-radius: 10px;
+    padding: 14px 18px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.25s;
+    z-index: 2;
+    width: 240px;
+  }
+  .node:hover { transform: scale(1.04); z-index: 10; }
+  .node.highlight { box-shadow: 0 0 30px rgba(255,255,255,0.08); z-index: 10; }
+  .node h3 { font-size: 13px; font-weight: 700; margin-bottom: 5px; line-height: 1.3; }
+  .node .sub { font-size: 10.5px; line-height: 1.55; opacity: 0.65; }
+  .node .tag {
+    display: inline-block;
+    font-size: 8px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    margin-top: 7px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 700;
+  }
+
+  .c-red { background: rgba(180,40,40,0.13); border: 1.5px solid #b42828; color: #f87171; }
+  .c-red h3 { color: #fca5a5; } .c-red .tag { background: rgba(180,40,40,0.3); color: #f87171; }
+  .c-darkred { background: rgba(127,29,29,0.12); border: 1.5px solid #991b1b; color: #ef4444; }
+  .c-darkred h3 { color: #fca5a5; } .c-darkred .tag { background: rgba(127,29,29,0.3); color: #ef4444; }
+  .c-blue { background: rgba(37,99,235,0.1); border: 1.5px solid #2563eb; color: #93c5fd; }
+  .c-blue h3 { color: #bfdbfe; } .c-blue .tag { background: rgba(37,99,235,0.25); color: #93c5fd; }
+  .c-lightblue { background: rgba(59,130,246,0.08); border: 1.5px solid #3b82f6; color: #93c5fd; }
+  .c-lightblue h3 { color: #bfdbfe; } .c-lightblue .tag { background: rgba(59,130,246,0.2); color: #93c5fd; }
+  .c-gray { background: rgba(107,114,128,0.1); border: 1.5px solid #4b5563; color: #d1d5db; }
+  .c-gray h3 { color: #e5e7eb; } .c-gray .tag { background: rgba(107,114,128,0.25); color: #d1d5db; }
+  .c-orange { background: rgba(234,88,12,0.1); border: 1.5px solid #ea580c; color: #fdba74; }
+  .c-orange h3 { color: #fed7aa; } .c-orange .tag { background: rgba(234,88,12,0.25); color: #fdba74; }
+  .c-amber { background: rgba(161,98,7,0.12); border: 1.5px solid #a16207; color: #fbbf24; }
+  .c-amber h3 { color: #fde68a; } .c-amber .tag { background: rgba(161,98,7,0.3); color: #fbbf24; }
+  .c-yellow { background: rgba(234,179,8,0.08); border: 1.5px solid #ca8a04; color: #fde68a; }
+  .c-yellow h3 { color: #fef3c7; } .c-yellow .tag { background: rgba(234,179,8,0.2); color: #fde68a; }
+  .c-green { background: rgba(16,185,129,0.08); border: 1.5px solid #10b981; color: #6ee7b7; }
+  .c-green h3 { color: #a7f3d0; } .c-green .tag { background: rgba(16,185,129,0.2); color: #6ee7b7; }
+  .c-purple { background: rgba(139,92,246,0.08); border: 1.5px solid #7c3aed; color: #c4b5fd; }
+  .c-purple h3 { color: #ddd6fe; } .c-purple .tag { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+  .c-teal { background: rgba(20,184,166,0.08); border: 1.5px solid #14b8a6; color: #5eead4; }
+  .c-teal h3 { color: #99f6e4; } .c-teal .tag { background: rgba(20,184,166,0.2); color: #5eead4; }
+  .c-pink { background: rgba(219,39,119,0.08); border: 1.5px solid #db2777; color: #f9a8d4; }
+  .c-pink h3 { color: #fbcfe8; } .c-pink .tag { background: rgba(219,39,119,0.2); color: #f9a8d4; }
+  .c-white { background: rgba(255,255,255,0.04); border: 1.5px solid #374151; color: #d1d5db; }
+  .c-white h3 { color: #f3f4f6; } .c-white .tag { background: rgba(255,255,255,0.08); color: #d1d5db; }
+
+  .node.iran-main { width: 300px; padding: 18px 22px; border-width: 2px; box-shadow: 0 0 40px rgba(180,40,40,0.15); }
+  .node.iran-main h3 { font-size: 16px; }
+
+  .flow-label {
+    position: absolute;
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 1;
+    background: #08080d;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  #hud {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 200;
+    pointer-events: none;
+  }
+  #hud h1 { font-size: 22px; color: #fff; font-weight: 800; letter-spacing: 5px; text-transform: uppercase; }
+  #hud { top: 12px; left: 16px; }
+  #hud .sub { font-size: 11px; color: #444; margin-top: 4px; max-width: 500px; line-height: 1.5; }
+
+  #legend {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    z-index: 200;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    pointer-events: none;
+    background: rgba(8,8,13,0.9);
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid #151520;
+    max-width: calc(100% - 360px);
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 9px; color: #555; }
+  .legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  #controls {
+    position: fixed;
+    bottom: 16px;
+    right: 340px;
+    z-index: 200;
+    display: flex;
+    gap: 6px;
+  }
+  #controls button {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid #1a1a28;
+    color: #555;
+    padding: 7px 12px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  #controls button:hover { border-color: #333; color: #aaa; }
+
+  /* Globe theme toggle */
+  #globe-theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 680px;
+    z-index: 200;
+    display: flex;
+    background: rgba(8,8,13,0.9);
+    border: 1px solid #1a1a28;
+    border-radius: 20px;
+    overflow: hidden;
+    padding: 2px;
+  }
+  #globe-theme-toggle button {
+    background: none;
+    border: none;
+    color: #444;
+    padding: 5px 12px;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 16px;
+    transition: all 0.2s;
+  }
+  #globe-theme-toggle button.active {
+    background: rgba(255,255,255,0.1);
+    color: #ccc;
+  }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <h1>SITUATION MAP</h1>
+</div>
+
+<div id="mode-toggle">
+  <button id="btn-network" onclick="setMode('network')">Network</button>
+  <button id="btn-globe" class="active" onclick="setMode('globe')">Globe</button>
+</div>
+<div id="globe-theme-toggle">
+  <button id="btn-dark" class="active" onclick="toggleGlobeTheme(false)">Dark</button>
+  <button id="btn-light" onclick="toggleGlobeTheme(true)">Light</button>
+</div>
+
+<!-- NETWORK VIEW -->
+<div id="network-view" style="display:none">
+  <div id="network">
+    <svg id="lines" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="a-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#b42828" opacity="0.6"/></marker>
+        <marker id="a-gray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4b5563" opacity="0.6"/></marker>
+        <marker id="a-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ea580c" opacity="0.6"/></marker>
+        <marker id="a-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#2563eb" opacity="0.6"/></marker>
+        <marker id="a-amber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#a16207" opacity="0.6"/></marker>
+        <marker id="a-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#10b981" opacity="0.6"/></marker>
+        <marker id="a-yellow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ca8a04" opacity="0.6"/></marker>
+        <marker id="a-purple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#7c3aed" opacity="0.6"/></marker>
+        <marker id="a-teal" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#14b8a6" opacity="0.6"/></marker>
+        <marker id="a-pink" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#db2777" opacity="0.6"/></marker>
+        <marker id="a-white" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#374151" opacity="0.6"/></marker>
+      </defs>
+    </svg>
+  </div>
+</div>
+
+<!-- GLOBE VIEW -->
+<div id="globe-view" style="display:block"></div>
+
+<!-- Globe popup card -->
+<div id="globe-card">
+  <button class="card-close" onclick="closeGlobeCard()">&times;</button>
+  <div class="card-header">
+    <div class="card-dot" id="gc-dot"></div>
+    <div class="card-title" id="gc-title"></div>
+    <div class="card-tag" id="gc-tag"></div>
+  </div>
+  <div class="card-body" id="gc-body"></div>
+  <div class="card-osint" id="gc-osint"></div>
+</div>
+
+<!-- LEADER TABLE -->
+<div id="leader-panel">
+  <h2>Power Players</h2>
+
+  <!-- IRAN -->
+  <div class="country-block" data-country="iran">
+    <div class="country-header" onclick="toggleCountry(this)">
+      <span class="country-flag">&#x1F1EE;&#x1F1F7;</span>
+      <span class="country-name">Iran</span>
+      <span class="country-count">10</span>
+      <span class="country-chevron">&#9654;</span>
+    </div>
+    <div class="country-body">
+      <div class="leader-card"><div class="leader-dot" style="background:#b42828"></div><div class="leader-info"><h4>Ali Khamenei</h4><div class="leader-role">Supreme Leader (1989-2026). Controlled all military, nuclear, and foreign policy decisions for 35 years.</div><span class="leader-status status-dead">Killed Feb 28</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#f87171"></div><div class="leader-info"><h4>Mojtaba Khamenei</h4><div class="leader-role">New Supreme Leader. Named by Assembly of Experts March 8. Khamenei's son, no military experience. Controls Bonyads (religious foundations worth $200B+).</div><span class="leader-status status-new">New Leader</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#b42828"></div><div class="leader-info"><h4>Masoud Pezeshkian</h4><div class="leader-role">President. Reformist, but power is with Supreme Leader. Part of interim crisis council. Limited real authority.</div><span class="leader-status status-active">President</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#b42828"></div><div class="leader-info"><h4>Ahmad Vahidi</h4><div class="leader-role">New IRGC Commander. Former Defense Minister, Interpol Red Notice for 1994 AMIA bombing. Hardliner loyalist.</div><span class="leader-status status-new">New Commander</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#b42828"></div><div class="leader-info"><h4>Mohammad Bagheri</h4><div class="leader-role">Chief of Armed Forces General Staff. Coordinating military response post-Epic Fury. Career military, not IRGC.</div><span class="leader-status status-active">Military Chief</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#b42828"></div><div class="leader-info"><h4>Esmail Qaani</h4><div class="leader-role">Quds Force Commander (Soleimani replacement). Status unclear post-strikes. Reports of injury. Ran all proxy operations.</div><span class="leader-status status-weakened">Status Unknown</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#b42828"></div><div class="leader-info"><h4>Ahmad Jannati</h4><div class="leader-role">Head of Assembly of Experts (chose new Supreme Leader) and Guardian Council. 97 years old. Ultra-hardliner gatekeeper.</div><span class="leader-status status-active">Kingmaker</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#b42828"></div><div class="leader-info"><h4>Mohammad Eslami</h4><div class="leader-role">Head of Atomic Energy Org (AEOI). Oversees Natanz and Fordow. Key figure in nuclear breakout decisions.</div><span class="leader-status status-active">Nuclear Chief</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#10b981"></div><div class="leader-info"><h4>Reza Pahlavi</h4><div class="leader-role">Exiled Crown Prince (son of Shah). Opposition figurehead. Calls for secular democracy. Growing online following inside Iran.</div><span class="leader-status status-opposition">Opposition</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#10b981"></div><div class="leader-info"><h4>Masih Alinejad</h4><div class="leader-role">Journalist, women's rights activist. Face of Mahsa Amini protests. Iran attempted kidnapping in Brooklyn. Amplifies protest footage globally.</div><span class="leader-status status-opposition">Opposition</span></div></div>
+    </div>
+  </div>
+
+  <!-- UNITED STATES -->
+  <div class="country-block" data-country="us">
+    <div class="country-header" onclick="toggleCountry(this)">
+      <span class="country-flag">&#x1F1FA;&#x1F1F8;</span>
+      <span class="country-name">United States</span>
+      <span class="country-count">8</span>
+      <span class="country-chevron">&#9654;</span>
+    </div>
+    <div class="country-body">
+      <div class="leader-card"><div class="leader-dot" style="background:#2563eb"></div><div class="leader-info"><h4>Donald Trump</h4><div class="leader-role">President. Authorized Epic Fury. Reinstated Maximum Pressure (Feb 2025). Demands unconditional surrender. 25% tariffs on Iran traders.</div><span class="leader-status status-active">Commander in Chief</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#2563eb"></div><div class="leader-info"><h4>Pete Hegseth</h4><div class="leader-role">Secretary of Defense. Overseeing largest Middle East deployment since 2003. Former Fox News host. Hawkish on Iran.</div><span class="leader-status status-hawkish">SecDef</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#2563eb"></div><div class="leader-info"><h4>Marco Rubio</h4><div class="leader-role">Secretary of State. Long history of Iran hawkishness. Led sanctions push in Senate. Managing diplomatic fallout with allies.</div><span class="leader-status status-hawkish">SecState</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#2563eb"></div><div class="leader-info"><h4>Mike Waltz</h4><div class="leader-role">National Security Advisor. Former Green Beret. Architect of the Epic Fury operational plan. Iran policy lead in NSC.</div><span class="leader-status status-active">NSA</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#2563eb"></div><div class="leader-info"><h4>Gen. Michael Kurilla</h4><div class="leader-role">CENTCOM Commander. Operational control of all US forces in Middle East. Managing 2 carrier strike groups, 5,000+ personnel.</div><span class="leader-status status-active">CENTCOM</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#2563eb"></div><div class="leader-info"><h4>William Burns</h4><div class="leader-role">CIA Director (holdover). Intelligence assessment on Iran nuclear program informed strike timing. Extensive Iran back-channel experience.</div><span class="leader-status status-active">Intelligence</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#7c3aed"></div><div class="leader-info"><h4>Joe Biden</h4><div class="leader-role">Former President. Unfroze $6B in Iranian assets. Diplomacy-first approach universally seen as failed. Trump reversed everything.</div><span class="leader-status status-failed">Former POTUS</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#93c5fd"></div><div class="leader-info"><h4>Rand Paul</h4><div class="leader-role">Senator, leading anti-war voice. Opposes strikes without Congressional authorization. War Powers Act challenge expected.</div><span class="leader-status status-opposition">Dovish</span></div></div>
+    </div>
+  </div>
+
+  <!-- ISRAEL -->
+  <div class="country-block" data-country="israel">
+    <div class="country-header" onclick="toggleCountry(this)">
+      <span class="country-flag">&#x1F1EE;&#x1F1F1;</span>
+      <span class="country-name">Israel</span>
+      <span class="country-count">6</span>
+      <span class="country-chevron">&#9654;</span>
+    </div>
+    <div class="country-body">
+      <div class="leader-card"><div class="leader-dot" style="background:#3b82f6"></div><div class="leader-info"><h4>Benjamin Netanyahu</h4><div class="leader-role">PM. Pushed hard for strikes. "End it once and for all." Fighting on 7 fronts simultaneously. Corruption trial ongoing.</div><span class="leader-status status-active">Prime Minister</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#3b82f6"></div><div class="leader-info"><h4>Yoav Gallant</h4><div class="leader-role">Former Defense Minister (fired Oct 2024 for opposing judicial reform). Was key architect of multi-front strategy. Knew Iran was the real target.</div><span class="leader-status status-failed">Fired</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#3b82f6"></div><div class="leader-info"><h4>Israel Katz</h4><div class="leader-role">Current Defense Minister (replaced Gallant). Managing IDF operations across Gaza, Lebanon, and Iran strike coordination.</div><span class="leader-status status-active">DefMin</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#3b82f6"></div><div class="leader-info"><h4>Herzi Halevi</h4><div class="leader-role">IDF Chief of Staff. Oversaw elimination of 5 senior IRGC Quds commanders. Oct 7 intelligence failure on his watch.</div><span class="leader-status status-active">IDF Chief</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#3b82f6"></div><div class="leader-info"><h4>David Barnea</h4><div class="leader-role">Mossad Director. Led intelligence operations against Hezbollah (pager attacks). Iran nuclear facility targeting intelligence.</div><span class="leader-status status-active">Mossad</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#fca5a5"></div><div class="leader-info"><h4>Itamar Ben Gvir</h4><div class="leader-role">National Security Minister. Far-right. Wants full annexation of West Bank. Visited Temple Mount. Complicates Saudi normalization.</div><span class="leader-status status-hawkish">Far-Right</span></div></div>
+    </div>
+  </div>
+
+  <!-- RUSSIA -->
+  <div class="country-block" data-country="russia">
+    <div class="country-header" onclick="toggleCountry(this)">
+      <span class="country-flag">&#x1F1F7;&#x1F1FA;</span>
+      <span class="country-name">Russia</span>
+      <span class="country-count">5</span>
+      <span class="country-chevron">&#9654;</span>
+    </div>
+    <div class="country-body">
+      <div class="leader-card"><div class="leader-dot" style="background:#4b5563"></div><div class="leader-info"><h4>Vladimir Putin</h4><div class="leader-role">President. Funds Iran, buys 54,500+ Shahed drones. Now producing domestically. BRICS co-leader. Stretched thin with Ukraine.</div><span class="leader-status status-active">President</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#4b5563"></div><div class="leader-info"><h4>Sergei Lavrov</h4><div class="leader-role">Foreign Minister. Provides UN Security Council cover for Iran. Blocks every sanctions resolution. Master of diplomatic obstruction.</div><span class="leader-status status-active">Diplomat</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#4b5563"></div><div class="leader-info"><h4>Nikolai Patrushev</h4><div class="leader-role">Former Security Council Secretary. Putin's shadow advisor. Architect of Russia-Iran-China axis strategy. Hardline anti-Western ideology.</div><span class="leader-status status-active">Shadow Advisor</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#4b5563"></div><div class="leader-info"><h4>Valery Gerasimov</h4><div class="leader-role">Chief of General Staff. Overseeing drone integration from Iran into Ukraine operations. 1,000+/week domestic Shahed production.</div><span class="leader-status status-active">Military Chief</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#4b5563"></div><div class="leader-info"><h4>Yevgeny Prigozhin</h4><div class="leader-role">Wagner Group founder. Killed Aug 2023 plane crash after mutiny. Wagner still active in Africa, Syria. Influence persists post-death.</div><span class="leader-status status-dead">Dead (2023)</span></div></div>
+    </div>
+  </div>
+
+  <!-- CHINA -->
+  <div class="country-block" data-country="china">
+    <div class="country-header" onclick="toggleCountry(this)">
+      <span class="country-flag">&#x1F1E8;&#x1F1F3;</span>
+      <span class="country-name">China</span>
+      <span class="country-count">4</span>
+      <span class="country-chevron">&#9654;</span>
+    </div>
+    <div class="country-body">
+      <div class="leader-card"><div class="leader-dot" style="background:#dc2626"></div><div class="leader-info"><h4>Xi Jinping</h4><div class="leader-role">President. Buys 1.38M bpd Iranian oil (53% of exports, relabeled as Malaysian). Brokered Saudi-Iran deal. Leads BRICS de-dollarization.</div><span class="leader-status status-active">Primary Funder</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#dc2626"></div><div class="leader-info"><h4>Wang Yi</h4><div class="leader-role">Foreign Minister. Brokered 2023 Saudi-Iran rapprochement in Beijing. China's face of Middle East diplomacy. Expanding influence in vacuum.</div><span class="leader-status status-diplomatic">Diplomat</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#dc2626"></div><div class="leader-info"><h4>Dong Jun</h4><div class="leader-role">Defense Minister. Managing military implications of Hormuz threat (20% of China's oil transits). Naval presence expanding in region.</div><span class="leader-status status-active">DefMin</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#dc2626"></div><div class="leader-info"><h4>CNOOC / Sinopec</h4><div class="leader-role">State oil companies buying Iranian crude at steep discount. Using ship-to-ship transfers to evade sanctions. Shadow fleet of 400+ tankers.</div><span class="leader-status status-active">Oil Buyers</span></div></div>
+    </div>
+  </div>
+
+  <!-- SAUDI ARABIA -->
+  <div class="country-block" data-country="saudi">
+    <div class="country-header" onclick="toggleCountry(this)">
+      <span class="country-flag">&#x1F1F8;&#x1F1E6;</span>
+      <span class="country-name">Saudi Arabia</span>
+      <span class="country-count">3</span>
+      <span class="country-chevron">&#9654;</span>
+    </div>
+    <div class="country-body">
+      <div class="leader-card"><div class="leader-dot" style="background:#14b8a6"></div><div class="leader-info"><h4>Mohammed bin Salman (MBS)</h4><div class="leader-role">Crown Prince, de facto ruler. Playing all sides. Abraham Accords paused. Called Gaza "genocide" publicly. Privately wants Iran contained.</div><span class="leader-status status-active">Hedging</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#14b8a6"></div><div class="leader-info"><h4>King Salman</h4><div class="leader-role">King (age 89). Largely ceremonial at this point. MBS runs everything. Symbol of continuity for the kingdom.</div><span class="leader-status status-weakened">Aging</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#14b8a6"></div><div class="leader-info"><h4>Prince Faisal bin Farhan</h4><div class="leader-role">Foreign Minister. Managing impossible balance: US alliance, China oil relationship, Iran rapprochement, Gaza optics for Arab street.</div><span class="leader-status status-diplomatic">Diplomat</span></div></div>
+    </div>
+  </div>
+
+  <!-- NORTH KOREA -->
+  <div class="country-block" data-country="nkorea">
+    <div class="country-header" onclick="toggleCountry(this)">
+      <span class="country-flag">&#x1F1F0;&#x1F1F5;</span>
+      <span class="country-name">North Korea</span>
+      <span class="country-count">2</span>
+      <span class="country-chevron">&#9654;</span>
+    </div>
+    <div class="country-body">
+      <div class="leader-card"><div class="leader-dot" style="background:#991b1b"></div><div class="leader-info"><h4>Kim Jong-un</h4><div class="leader-role">Supreme Leader. Shares ballistic missile tech and nuclear knowledge with Iran. Both benefit from parallel weapons programs.</div><span class="leader-status status-active">Weapons Partner</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#991b1b"></div><div class="leader-info"><h4>Kim Yo-jong</h4><div class="leader-role">Deputy Director, Propaganda Dept. Kim's sister and trusted advisor. Increasingly public-facing. Known for aggressive rhetoric toward US/South Korea.</div><span class="leader-status status-active">Shadow Power</span></div></div>
+    </div>
+  </div>
+
+  <!-- PROXIES -->
+  <div class="country-block" data-country="proxies">
+    <div class="country-header" onclick="toggleCountry(this)">
+      <span class="country-flag">&#x1F525;</span>
+      <span class="country-name">Proxy Leaders</span>
+      <span class="country-count">8</span>
+      <span class="country-chevron">&#9654;</span>
+    </div>
+    <div class="country-body">
+      <div class="leader-card"><div class="leader-dot" style="background:#ea580c"></div><div class="leader-info"><h4>Abdul Malik al-Houthi</h4><div class="leader-role">Houthi leader (Yemen). Red Sea shipping attacks. Forced US Navy to spend billions. Debating restart after Epic Fury.</div><span class="leader-status status-active">Houthi Chief</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#ea580c"></div><div class="leader-info"><h4>Naim Qassem</h4><div class="leader-role">Hezbollah Secretary-General (replaced Nasrallah, killed Sep 2024). Rebuilding after devastating Israeli strikes. 150K+ rockets still in arsenal.</div><span class="leader-status status-new">Hezbollah Chief</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#ea580c"></div><div class="leader-info"><h4>Hassan Nasrallah</h4><div class="leader-role">Former Hezbollah leader. Killed by Israeli airstrike Sep 2024. Led Hezbollah for 32 years. Most powerful proxy commander Iran ever built.</div><span class="leader-status status-dead">Killed Sep 2024</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#ea580c"></div><div class="leader-info"><h4>Yahya Sinwar</h4><div class="leader-role">Hamas leader in Gaza. Mastermind of Oct 7 attack. Killed by IDF Oct 2024. Spent 22 years in Israeli prison. Triggered the entire escalation cycle.</div><span class="leader-status status-dead">Killed Oct 2024</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#ea580c"></div><div class="leader-info"><h4>Mohammed Deif</h4><div class="leader-role">Hamas military commander. Al-Qassam Brigades chief. Survived 7+ assassination attempts. Status uncertain after Jul 2024 strike.</div><span class="leader-status status-weakened">Status Unknown</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#ea580c"></div><div class="leader-info"><h4>Ahmed al-Sharaa (al-Julani)</h4><div class="leader-role">Syria transitional president. Former HTS/al-Nusra. Toppled Assad Dec 2024. Cut Iran's weapons corridor. "Set Iranian project back 40 years."</div><span class="leader-status status-new">Syria Leader</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#ea580c"></div><div class="leader-info"><h4>Abu Fadak al-Muhammadawi</h4><div class="leader-role">Leader of Kata'ib Hezbollah (Iraq). Iran's most powerful Iraqi militia. Attacks US bases regularly. Key logistics corridor for Iran.</div><span class="leader-status status-active">Iraq Militia</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#ea580c"></div><div class="leader-info"><h4>Qais al-Khazali</h4><div class="leader-role">Leader of Asa'ib Ahl al-Haq (Iraq). IRGC-linked militia. Political party in Iraqi parliament. Iran's political arm inside Iraq.</div><span class="leader-status status-active">Iraq Political</span></div></div>
+    </div>
+  </div>
+
+  <!-- INDIA -->
+  <div class="country-block" data-country="india">
+    <div class="country-header" onclick="toggleCountry(this)">
+      <span class="country-flag">&#x1F1EE;&#x1F1F3;</span>
+      <span class="country-name">India</span>
+      <span class="country-count">2</span>
+      <span class="country-chevron">&#9654;</span>
+    </div>
+    <div class="country-body">
+      <div class="leader-card"><div class="leader-dot" style="background:#14b8a6"></div><div class="leader-info"><h4>Narendra Modi</h4><div class="leader-role">PM. Buys Iranian oil at discount. BRICS member but US strategic partner (Quad). Chabahar port deal. Won't pick a side.</div><span class="leader-status status-diplomatic">Both Sides</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#14b8a6"></div><div class="leader-info"><h4>S. Jaishankar</h4><div class="leader-role">External Affairs Minister. Master of "strategic autonomy" framing. Defends India's right to buy Iranian oil while maintaining US relationship.</div><span class="leader-status status-diplomatic">Diplomat</span></div></div>
+    </div>
+  </div>
+
+  <!-- EUROPE -->
+  <div class="country-block" data-country="europe">
+    <div class="country-header" onclick="toggleCountry(this)">
+      <span class="country-flag">&#x1F1EA;&#x1F1FA;</span>
+      <span class="country-name">Europe / EU</span>
+      <span class="country-count">4</span>
+      <span class="country-chevron">&#9654;</span>
+    </div>
+    <div class="country-body">
+      <div class="leader-card"><div class="leader-dot" style="background:#db2777"></div><div class="leader-info"><h4>Emmanuel Macron</h4><div class="leader-role">French President. Original JCPOA signatory. Wants diplomatic solution. Fears refugee crisis. Ukraine fatigue limits appetite for second front.</div><span class="leader-status status-diplomatic">France</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#db2777"></div><div class="leader-info"><h4>Olaf Scholz</h4><div class="leader-role">German Chancellor. Energy-dependent economy. Caught between US alliance and economic self-interest. Reluctant to escalate.</div><span class="leader-status status-diplomatic">Germany</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#db2777"></div><div class="leader-info"><h4>Keir Starmer</h4><div class="leader-role">UK PM. Closest US ally in Europe. Likely to support strikes publicly. Domestic pressure from Muslim voters over Gaza.</div><span class="leader-status status-active">UK</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#db2777"></div><div class="leader-info"><h4>Kaja Kallas</h4><div class="leader-role">EU High Representative for Foreign Affairs. Coordinating EU response. Sanctions enforcement. Balancing 27 member state interests.</div><span class="leader-status status-active">EU Foreign Policy</span></div></div>
+    </div>
+  </div>
+
+  <!-- UKRAINE -->
+  <div class="country-block" data-country="ukraine">
+    <div class="country-header" onclick="toggleCountry(this)">
+      <span class="country-flag">&#x1F1FA;&#x1F1E6;</span>
+      <span class="country-name">Ukraine</span>
+      <span class="country-count">2</span>
+      <span class="country-chevron">&#9654;</span>
+    </div>
+    <div class="country-body">
+      <div class="leader-card"><div class="leader-dot" style="background:#4b5563"></div><div class="leader-info"><h4>Volodymyr Zelensky</h4><div class="leader-role">President. Directly affected by Iran-Russia drone pipeline (54,500+ Shaheds). Wants Iran weapons supply cut. Fears US attention shifting from Ukraine to Iran.</div><span class="leader-status status-active">President</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#4b5563"></div><div class="leader-info"><h4>Oleksandr Syrskyi</h4><div class="leader-role">Commander-in-Chief of Armed Forces. Fighting daily against Iranian-made Shahed drones. Shared intelligence on drone capabilities with US/Israel.</div><span class="leader-status status-active">Military Chief</span></div></div>
+    </div>
+  </div>
+
+  <!-- VENEZUELA -->
+  <div class="country-block" data-country="venezuela">
+    <div class="country-header" onclick="toggleCountry(this)">
+      <span class="country-flag">&#x1F1FB;&#x1F1EA;</span>
+      <span class="country-name">Venezuela</span>
+      <span class="country-count">2</span>
+      <span class="country-chevron">&#9654;</span>
+    </div>
+    <div class="country-body">
+      <div class="leader-card"><div class="leader-dot" style="background:#ca8a04"></div><div class="leader-info"><h4>Nicolas Maduro</h4><div class="leader-role">President (disputed). Trump's strategy: secure Venezuelan oil first so US gas prices don't spike when Hormuz is threatened. Strategic chess move.</div><span class="leader-status status-active">Oil Insurance</span></div></div>
+      <div class="leader-card"><div class="leader-dot" style="background:#10b981"></div><div class="leader-info"><h4>Maria Corina Machado</h4><div class="leader-role">Opposition leader. Won primary but barred from running. Massive popular support. US leverage point against Maduro.</div><span class="leader-status status-opposition">Opposition</span></div></div>
+    </div>
+  </div>
+
+  <!-- KEY NUMBERS (collapsible bento blocks) -->
+  <div style="margin-top:12px;padding-top:10px;border-top:1px solid #151520">
+    <div style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:8px;padding-left:4px">Intel</div>
+  </div>
+
+  <div class="stats-block" onclick="this.classList.toggle('expanded')">
+    <div class="stats-header"><h3>Operation Epic Fury</h3><span class="stats-chevron">&#9654;</span></div>
+    <div class="stats-body">
+      <div class="stat-row"><span class="stat-label">Total strikes</span><span class="stat-value">2,000+</span></div>
+      <div class="stat-row"><span class="stat-label">First 12 hours</span><span class="stat-value">~900</span></div>
+      <div class="stat-row"><span class="stat-label">Date</span><span class="stat-value">Feb 28, 2026</span></div>
+      <div class="stat-row"><span class="stat-label">Cities hit</span><span class="stat-value">Tehran, Isfahan, Qom, Karaj, Kermanshah</span></div>
+      <div class="stat-row"><span class="stat-label">Leaders killed</span><span class="stat-value">Khamenei + family, 5 Quds commanders</span></div>
+      <div class="stat-row"><span class="stat-label">Largest US MENA op since</span><span class="stat-value">Iraq 2003</span></div>
+    </div>
+  </div>
+
+  <div class="stats-block" onclick="this.classList.toggle('expanded')">
+    <div class="stats-header"><h3>Nuclear Program</h3><span class="stats-chevron">&#9654;</span></div>
+    <div class="stats-body">
+      <div class="stat-row"><span class="stat-label">Uranium enrichment</span><span class="stat-value">60%</span></div>
+      <div class="stat-row"><span class="stat-label">Weapons-grade threshold</span><span class="stat-value">90%</span></div>
+      <div class="stat-row"><span class="stat-label">Breakout time</span><span class="stat-value">2-3 days</span></div>
+      <div class="stat-row"><span class="stat-label">Facilities</span><span class="stat-value">Natanz (damaged), Fordow (intact)</span></div>
+      <div class="stat-row"><span class="stat-label">IAEA access</span><span class="stat-value">Locked out</span></div>
+    </div>
+  </div>
+
+  <div class="stats-block" onclick="this.classList.toggle('expanded')">
+    <div class="stats-header"><h3>US Military Deployment</h3><span class="stats-chevron">&#9654;</span></div>
+    <div class="stats-body">
+      <div class="stat-row"><span class="stat-label">Carrier strike groups</span><span class="stat-value">2 CSGs</span></div>
+      <div class="stat-row"><span class="stat-label">Personnel</span><span class="stat-value">5,000+</span></div>
+      <div class="stat-row"><span class="stat-label">Aircraft</span><span class="stat-value">F-22s (Israel), F-15Es (Jordan)</span></div>
+      <div class="stat-row"><span class="stat-label">Bases</span><span class="stat-value">Bahrain, Kuwait, Qatar, UAE</span></div>
+      <div class="stat-row"><span class="stat-label">Naval zones</span><span class="stat-value">Hormuz, Red Sea, Med</span></div>
+    </div>
+  </div>
+
+  <div class="stats-block" onclick="this.classList.toggle('expanded')">
+    <div class="stats-header"><h3>Proxy Arsenal</h3><span class="stats-chevron">&#9654;</span></div>
+    <div class="stats-body">
+      <div class="stat-row"><span class="stat-label">Hezbollah rockets</span><span class="stat-value">150,000+</span></div>
+      <div class="stat-row"><span class="stat-label">Houthi missiles</span><span class="stat-value">Iranian-supplied</span></div>
+      <div class="stat-row"><span class="stat-label">Iraqi militia groups</span><span class="stat-value">Dozens (2 major)</span></div>
+      <div class="stat-row"><span class="stat-label">Shahed drones to Russia</span><span class="stat-value">54,500+</span></div>
+      <div class="stat-row"><span class="stat-label">Russia production</span><span class="stat-value">1,000+/week</span></div>
+    </div>
+  </div>
+
+  <div class="stats-block" onclick="this.classList.toggle('expanded')">
+    <div class="stats-header"><h3>Oil & Chokepoints</h3><span class="stats-chevron">&#9654;</span></div>
+    <div class="stats-body">
+      <div class="stat-row"><span class="stat-label">Hormuz</span><span class="stat-value">20% of global oil</span></div>
+      <div class="stat-row"><span class="stat-label">Red Sea / Suez</span><span class="stat-value">12% of global trade</span></div>
+      <div class="stat-row"><span class="stat-label">China buys</span><span class="stat-value">1.38M bpd</span></div>
+      <div class="stat-row"><span class="stat-label">Shadow tankers</span><span class="stat-value">400+ ships</span></div>
+      <div class="stat-row"><span class="stat-label">Red Sea transit</span><span class="stat-value">18.7% of normal</span></div>
+      <div class="stat-row"><span class="stat-label">Rerouting added</span><span class="stat-value">2-3 weeks</span></div>
+      <div class="stat-row"><span class="stat-label">Insurance</span><span class="stat-value">10x increase</span></div>
+    </div>
+  </div>
+
+  <div class="stats-block" onclick="this.classList.toggle('expanded')">
+    <div class="stats-header"><h3>Sanctions & Economics</h3><span class="stats-chevron">&#9654;</span></div>
+    <div class="stats-body">
+      <div class="stat-row"><span class="stat-label">Trump tariff</span><span class="stat-value">25% on Iran traders</span></div>
+      <div class="stat-row"><span class="stat-label">Biden unfroze</span><span class="stat-value">$6B</span></div>
+      <div class="stat-row"><span class="stat-label">IRGC empire</span><span class="stat-value">~$100B+</span></div>
+      <div class="stat-row"><span class="stat-label">Bonyads</span><span class="stat-value">$200B+</span></div>
+      <div class="stat-row"><span class="stat-label">BRICS</span><span class="stat-value">8 nations</span></div>
+      <div class="stat-row"><span class="stat-label">Abraham Accords</span><span class="stat-value">6 nations</span></div>
+    </div>
+  </div>
+
+  <div class="stats-block" onclick="this.classList.toggle('expanded')">
+    <div class="stats-header"><h3>Human Cost</h3><span class="stats-chevron">&#9654;</span></div>
+    <div class="stats-body">
+      <div class="stat-row"><span class="stat-label">Iran protests (since 2019)</span><span class="stat-value">30,000+</span></div>
+      <div class="stat-row"><span class="stat-label">Gaza (post Oct 7)</span><span class="stat-value">30,000+</span></div>
+      <div class="stat-row"><span class="stat-label">Oct 7 Israeli deaths</span><span class="stat-value">~1,200</span></div>
+      <div class="stat-row"><span class="stat-label">Ukraine (Iranian drones)</span><span class="stat-value">Thousands</span></div>
+      <div class="stat-row"><span class="stat-label">Yemen civil war</span><span class="stat-value">377,000+</span></div>
+      <div class="stat-row"><span class="stat-label">Syrian civil war</span><span class="stat-value">500,000+</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="legend" style="display:none">
+  <div class="legend-item"><div class="legend-dot" style="background:#ff3333"></div>Enemy Axis (Iran, Russia, China, NK)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#33dd55"></div>Allied (US, Israel, Saudi, Ukraine)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#eebb22"></div>Proxy / Contested</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#5588cc"></div>Neutral</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>Oil / Chokepoints</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div>Diplomacy</div>
+  <div class="legend-item" style="margin-left:12px;border-left:1px solid #222;padding-left:12px"><span style="color:#333">Solid = active</span></div>
+  <div class="legend-item"><span style="color:#333">Dashed = failed/indirect</span></div>
+</div>
+
+<div id="controls" style="display:none">
+  <button onclick="resetView()">Reset</button>
+  <button onclick="zoomIn()">+</button>
+  <button onclick="zoomOut()">-</button>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+
+const nodes = [
+  // TIER 1: UPSTREAM FUNDERS (y~80-200)
+  { id: 'china', cls: 'c-darkred', x: 500, y: 80,
+    title: 'China',
+    sub: 'Buys 1.38M barrels/day of Iranian oil (53% of Iran\'s exports). Relabeled as Malaysian origin. Brokered Saudi-Iran deal 2023. Leads BRICS de-dollarization.',
+    tag: 'Primary Funder',
+    lat: 35.86, lng: 104.19, gc: '#dc2626' },
+
+  { id: 'russia', cls: 'c-gray', x: 920, y: 80,
+    title: 'Russia',
+    sub: 'Funds Iran, provides UN cover. Receives 54,500+ Shahed drones for Ukraine in 2025. Now produces 1,000+/week domestically. Growing rift as Russia absorbs the tech.',
+    tag: 'Funder + Drone Buyer',
+    lat: 55.75, lng: 37.62, gc: '#4b5563' },
+
+  { id: 'brics', cls: 'c-purple', x: 1350, y: 80,
+    title: 'BRICS Bloc',
+    sub: 'China, Russia, Iran, India, Saudi, UAE, Egypt, Ethiopia. Alternative financial system helps Iran evade Western sanctions. De-dollarization threat to US leverage.',
+    tag: 'Sanctions Evasion',
+    lat: -15.78, lng: -47.93, gc: '#7c3aed' },
+
+  { id: 'nkorea', cls: 'c-darkred', x: 160, y: 200,
+    title: 'North Korea',
+    sub: 'Shares ballistic missile tech and nuclear knowledge with Iran. Same authoritarian axis. Both benefit from the other\'s weapons programs.',
+    tag: 'Weapons Tech',
+    lat: 39.03, lng: 125.75, gc: '#991b1b' },
+
+  // TIER 2: IRAN CORE (y~420-720)
+  { id: 'iran', cls: 'c-red iran-main', x: 680, y: 430,
+    title: 'Iran (Regime)',
+    sub: 'Khamenei killed Feb 28 in Operation Epic Fury. Son Mojtaba named successor March 8. 2,000+ US/Israel strikes hit Tehran, Isfahan, Qom. Regime in crisis but not collapsed. 60% enriched uranium stockpile fate unknown.',
+    tag: 'Central Node',
+    lat: 35.69, lng: 51.39, gc: '#b42828' },
+
+  { id: 'irgc', cls: 'c-red', x: 340, y: 490,
+    title: 'IRGC (Revolutionary Guard)',
+    sub: 'Iran\'s shadow government. Controls proxies, nukes, and massive business empire. 5 senior Quds commanders killed. New chief: Ahmad Vahidi. Command decentralized to survive strikes.',
+    tag: 'Shadow Power',
+    lat: 32.65, lng: 51.67, gc: '#b42828' },
+
+  { id: 'nukes', cls: 'c-red', x: 300, y: 700,
+    title: 'Nuclear Program',
+    sub: '60% enriched uranium (weapons-grade = 90%, but 60% is 90% of the work). Breakout time: 2-3 days for first bomb. Natanz damaged. Fordow intact (underground). IAEA locked out.',
+    tag: 'Near Breakout',
+    lat: 33.72, lng: 51.73, gc: '#b42828' },
+
+  { id: 'epicfury', cls: 'c-blue', x: 1050, y: 550,
+    title: 'Operation Epic Fury',
+    sub: 'Feb 28, 2026. Joint US-Israel strikes. ~900 in first 12 hours, 2,000+ total. Hit Tehran, Isfahan, Qom, Karaj, Kermanshah. Killed Khamenei + family. Largest US Middle East operation since 2003.',
+    tag: 'Feb 28 2026',
+    lat: 32.43, lng: 53.69, gc: '#2563eb' },
+
+  { id: 'hormuz', cls: 'c-amber', x: 1100, y: 350,
+    title: 'Strait of Hormuz',
+    sub: '20% of global oil passes through. Iran threatens closure. If shut: global energy crisis. Hurts China\'s imports. US Navy deployed 2 carrier strike groups.',
+    tag: 'Oil Chokepoint',
+    lat: 26.56, lng: 56.25, gc: '#a16207' },
+
+  { id: 'redsea', cls: 'c-amber', x: 1420, y: 350,
+    title: 'Red Sea / Suez',
+    sub: '12% of global trade. Houthi attacks dropped transit to 18.7% of normal. Rerouting adds 2-3 weeks/voyage. Insurance 10x. Houthis debating restart post-Epic Fury.',
+    tag: 'Trade Chokepoint',
+    lat: 20.0, lng: 38.5, gc: '#a16207' },
+
+  // TIER 3: PROXY NETWORK (y~920-1100)
+  { id: 'hezbollah', cls: 'c-orange', x: 250, y: 920,
+    title: 'Hezbollah (Lebanon)',
+    sub: 'Iran\'s most powerful proxy. Launched missiles at Israel March 2. 150K+ rockets. Weakened by 2024 Israeli strikes but still operational. Key leaders eliminated.',
+    tag: 'Primary Proxy',
+    lat: 33.89, lng: 35.50, gc: '#ea580c' },
+
+  { id: 'houthis', cls: 'c-orange', x: 620, y: 920,
+    title: 'Houthis (Yemen)',
+    sub: 'Red Sea shipping attacks with Iranian weapons. Forced US Navy to spend billions. Announced potential restart of attacks post-Epic Fury. Asymmetric warfare succeeding.',
+    tag: 'Red Sea Threat',
+    lat: 15.35, lng: 44.21, gc: '#ea580c' },
+
+  { id: 'hamas', cls: 'c-orange', x: 990, y: 920,
+    title: 'Hamas (Gaza)',
+    sub: 'Oct 7 triggered entire escalation cycle. Iranian-funded. Gaza devastated. Attack achieved Iran\'s goal: destabilized Abraham Accords normalization with Saudi.',
+    tag: 'Triggered Cycle',
+    lat: 31.35, lng: 34.31, gc: '#ea580c' },
+
+  { id: 'syria', cls: 'c-orange', x: 1350, y: 920,
+    title: 'Syria (Post-Assad)',
+    sub: 'Assad fled Dec 2024. Ahmed al-Sharaa (HTS) now transitional president. Iran lost weapons corridor to Hezbollah. "Set Iranian project back 40 years." Russia kept bases.',
+    tag: 'Lost Ally',
+    lat: 33.51, lng: 36.28, gc: '#ea580c' },
+
+  { id: 'iraq', cls: 'c-orange', x: 1680, y: 920,
+    title: 'Iraqi Militias',
+    sub: 'Iran-backed Shia militias in Iraqi government. Attack US bases regularly. Iran uses Iraq as buffer zone and influence corridor. Key logistics hub.',
+    tag: 'Buffer Zone',
+    lat: 33.31, lng: 44.37, gc: '#ea580c' },
+
+  // TIER 4: RESPONSE (y~1280-1500)
+  { id: 'trump', cls: 'c-blue', x: 650, y: 1300,
+    title: 'Trump',
+    sub: 'Reinstated Maximum Pressure (Feb 2025). Authorized Epic Fury (Feb 2026). Demands unconditional surrender. 25% tariffs on countries trading with Iran. Venezuela-first oil strategy.',
+    tag: 'Commander in Chief',
+    lat: 38.90, lng: -77.04, gc: '#2563eb' },
+
+  { id: 'israel', cls: 'c-lightblue', x: 1050, y: 1280,
+    title: 'Israel (Netanyahu)',
+    sub: 'Joint strike partner. Already hit Hezbollah, Hamas, and Iran directly. IDF eliminated 5 senior IRGC Quds commanders. Fighting on multiple fronts simultaneously.',
+    tag: 'Strike Partner',
+    lat: 31.77, lng: 35.23, gc: '#3b82f6' },
+
+  { id: 'usmilitary', cls: 'c-white', x: 1050, y: 1480,
+    title: 'US Military Buildup',
+    sub: 'Largest since 2003 Iraq invasion. 2 carrier strike groups, 5,000+ personnel. F-22s in Israel, F-15Es in Jordan. Warships in Hormuz, Red Sea, and Med. Bases in Bahrain, Kuwait, Qatar, UAE.',
+    tag: 'Deployed',
+    lat: 26.07, lng: 50.55, gc: '#374151' },
+
+  { id: 'biden', cls: 'c-purple', x: 350, y: 1480,
+    title: 'Biden-Era Diplomacy',
+    sub: 'Constantly tried negotiating. Iran did the opposite every time. Unfroze $6B in Iranian assets. Approach universally seen as failed. Trump pulled out immediately.',
+    tag: 'Failed',
+    lat: 38.90, lng: -77.04, gc: '#7c3aed' },
+
+  { id: 'saudi', cls: 'c-teal', x: 350, y: 1280,
+    title: 'Saudi Arabia (MBS)',
+    sub: 'Iran\'s Sunni rival. China brokered rapprochement 2023. Abraham Accords paused post-Oct 7. Called Gaza "genocide." Quietly wants Iran contained. Won\'t say it publicly.',
+    tag: 'Hedging',
+    lat: 24.71, lng: 46.68, gc: '#14b8a6' },
+
+  { id: 'india', cls: 'c-teal', x: 1450, y: 1280,
+    title: 'India',
+    sub: 'Quietly buys Iranian oil at discount. BRICS member but US strategic partner. Chabahar port deal with Iran. Plays both sides. Won\'t pick.',
+    tag: 'Both Sides',
+    lat: 28.61, lng: 77.21, gc: '#14b8a6' },
+
+  { id: 'accords', cls: 'c-lightblue', x: 1450, y: 1480,
+    title: 'Abraham Accords',
+    sub: '6 members: UAE, Bahrain, Morocco, Sudan, Kazakhstan, Somaliland. No withdrawals despite Gaza. Saudi deal paused. Public sentiment soured across Arab world.',
+    tag: '6 Nations',
+    lat: 24.45, lng: 54.65, gc: '#3b82f6' },
+
+  // TIER 5: CONSEQUENCES (y~1700-1800)
+  { id: 'venezuela', cls: 'c-yellow', x: 350, y: 1720,
+    title: 'Venezuela (Step 1)',
+    sub: 'Trump\'s sequencing: secure Venezuelan oil before Hormuz disruption so American gas prices don\'t spike. Also cuts another China oil source. Strategic chess move.',
+    tag: 'Oil Insurance',
+    lat: 10.48, lng: -66.90, gc: '#ca8a04' },
+
+  { id: 'people', cls: 'c-green', x: 700, y: 1720,
+    title: 'Iranian People',
+    sub: '~50/50 on regime change. 30K+ killed in protest crackdowns. Internet cut. Videos begging Trump for help. Regime\'s greatest vulnerability. Protests resumed after sanctions pressure.',
+    tag: 'Regime Vulnerability',
+    lat: 35.69, lng: 51.39, gc: '#10b981' },
+
+  { id: 'europe', cls: 'c-pink', x: 1050, y: 1720,
+    title: 'Europe / EU',
+    sub: 'Original JCPOA signatories. Energy-dependent. Refugee fears if conflict escalates. Ukraine fatigue. Caught between US alliance and economic self-interest.',
+    tag: 'Caught in Middle',
+    lat: 50.85, lng: 4.35, gc: '#db2777' },
+
+  { id: 'ukraine', cls: 'c-gray', x: 1700, y: 180,
+    title: 'Ukraine War',
+    sub: 'Russia receiving Iranian Shahed drones (54,500+ in 2025). Feedback loop: Russia funds Iran, Iran arms Russia. US now stretched across two theaters.',
+    tag: 'Connected Theater',
+    lat: 50.45, lng: 30.52, gc: '#4b5563' },
+
+  { id: 'shipping', cls: 'c-amber', x: 1400, y: 1720,
+    title: 'Global Shipping Crisis',
+    sub: 'Hormuz (20% oil) + Red Sea (12% trade) = two chokepoints threatened simultaneously. Rerouting adds weeks. Maersk lost $153M in Q4 2025. Insurance 10x. Inflation pressure worldwide.',
+    tag: 'Economic Fallout',
+    lat: 12.0, lng: 45.0, gc: '#a16207' },
+];
+
+const connections = [
+  // MONEY FLOWS (top to center)
+  { from: 'china', to: 'iran', color: '#dc2626', arrow: 'a-red', label: '1.38M barrels/day', w: 3 },
+  { from: 'russia', to: 'iran', color: '#4b5563', arrow: 'a-gray', label: 'Funding + UN cover', w: 2 },
+  { from: 'nkorea', to: 'iran', color: '#991b1b', arrow: 'a-red', label: 'Missile tech', w: 1.5 },
+  { from: 'brics', to: 'iran', color: '#7c3aed', arrow: 'a-purple', label: 'Sanctions evasion', w: 1.5, dash: true },
+  { from: 'china', to: 'brics', color: '#7c3aed', arrow: 'a-purple', label: 'Leads', w: 1 },
+  { from: 'russia', to: 'brics', color: '#7c3aed', arrow: 'a-purple', label: '', w: 1 },
+
+  // Iran internal
+  { from: 'iran', to: 'irgc', color: '#b42828', arrow: 'a-red', label: 'Real power', w: 2 },
+  { from: 'irgc', to: 'nukes', color: '#b42828', arrow: 'a-red', label: '60% enriched', w: 2 },
+
+  // Iran -> Proxies
+  { from: 'iran', to: 'hezbollah', color: '#ea580c', arrow: 'a-orange', label: 'Money + weapons', w: 2.5 },
+  { from: 'iran', to: 'houthis', color: '#ea580c', arrow: 'a-orange', label: 'Weapons + training', w: 2 },
+  { from: 'iran', to: 'hamas', color: '#ea580c', arrow: 'a-orange', label: 'Funding', w: 2 },
+  { from: 'iran', to: 'syria', color: '#ea580c', arrow: 'a-orange', label: 'Corridor lost (2024)', w: 1.5, dash: true },
+  { from: 'iran', to: 'iraq', color: '#ea580c', arrow: 'a-orange', label: 'Militia control', w: 1.5 },
+
+  // Oil chokepoints
+  { from: 'iran', to: 'hormuz', color: '#a16207', arrow: 'a-amber', label: 'Threatens closure', w: 2 },
+  { from: 'houthis', to: 'redsea', color: '#ea580c', arrow: 'a-orange', label: 'Attacking shipping', w: 2.5 },
+  { from: 'hormuz', to: 'china', color: '#a16207', arrow: 'a-amber', label: 'If closed, hurts China', w: 1.5, dash: true },
+  { from: 'redsea', to: 'shipping', color: '#a16207', arrow: 'a-amber', label: 'Trade disrupted', w: 2 },
+  { from: 'hormuz', to: 'shipping', color: '#a16207', arrow: 'a-amber', label: 'Double chokepoint', w: 1.5, dash: true },
+
+  // Iran-Russia drone loop
+  { from: 'iran', to: 'ukraine', color: '#b42828', arrow: 'a-red', label: 'Shahed drones', w: 2 },
+  { from: 'russia', to: 'ukraine', color: '#4b5563', arrow: 'a-gray', label: 'Invading', w: 2 },
+
+  // Operation Epic Fury
+  { from: 'epicfury', to: 'iran', color: '#2563eb', arrow: 'a-blue', label: '2,000+ strikes', w: 3 },
+  { from: 'trump', to: 'epicfury', color: '#2563eb', arrow: 'a-blue', label: 'Authorized', w: 2 },
+  { from: 'israel', to: 'epicfury', color: '#3b82f6', arrow: 'a-blue', label: 'Joint op', w: 2 },
+
+  // US/Israel response
+  { from: 'israel', to: 'trump', color: '#3b82f6', arrow: 'a-blue', label: 'Alliance', w: 1.5 },
+  { from: 'israel', to: 'hezbollah', color: '#3b82f6', arrow: 'a-blue', label: '2024 strikes', w: 1.5, dash: true },
+  { from: 'israel', to: 'hamas', color: '#3b82f6', arrow: 'a-blue', label: 'Gaza war', w: 1.5, dash: true },
+  { from: 'usmilitary', to: 'epicfury', color: '#374151', arrow: 'a-white', label: '2 carriers + F-22s', w: 2 },
+  { from: 'biden', to: 'iran', color: '#7c3aed', arrow: 'a-purple', label: 'Negotiated (failed)', w: 1, dash: true },
+  { from: 'trump', to: 'biden', color: '#2563eb', arrow: 'a-blue', label: 'Pulled out', w: 1, dash: true },
+
+  // Saudi / Gulf
+  { from: 'saudi', to: 'iran', color: '#14b8a6', arrow: 'a-teal', label: 'Rivals (Sunni v Shia)', w: 1.5, dash: true },
+  { from: 'china', to: 'saudi', color: '#dc2626', arrow: 'a-red', label: 'Brokered deal', w: 1, dash: true },
+  { from: 'saudi', to: 'accords', color: '#14b8a6', arrow: 'a-teal', label: 'Paused', w: 1, dash: true },
+  { from: 'israel', to: 'accords', color: '#3b82f6', arrow: 'a-blue', label: '6 nations', w: 1 },
+
+  // Strategic sequencing
+  { from: 'trump', to: 'venezuela', color: '#ca8a04', arrow: 'a-yellow', label: 'Step 1: Secure oil', w: 2.5 },
+  { from: 'venezuela', to: 'hormuz', color: '#ca8a04', arrow: 'a-yellow', label: 'Replaces supply', w: 1.5, dash: true },
+
+  // People
+  { from: 'iran', to: 'people', color: '#ef4444', arrow: 'a-red', label: '30K killed', w: 2, dash: true },
+  { from: 'people', to: 'trump', color: '#10b981', arrow: 'a-green', label: 'Begging for help', w: 1.5, dash: true },
+
+  // Europe
+  { from: 'shipping', to: 'europe', color: '#db2777', arrow: 'a-pink', label: 'Supply chain hit', w: 1.5, dash: true },
+  { from: 'europe', to: 'biden', color: '#db2777', arrow: 'a-pink', label: 'JCPOA partners', w: 1, dash: true },
+  { from: 'ukraine', to: 'europe', color: '#4b5563', arrow: 'a-gray', label: 'Fatigue', w: 1, dash: true },
+
+  // India
+  { from: 'india', to: 'iran', color: '#14b8a6', arrow: 'a-teal', label: 'Quiet oil buyer', w: 1, dash: true },
+];
+
+// ============================================================
+// RENDER NETWORK VIEW (Grid Layout)
+// ============================================================
+
+// Color map for card dot/border
+const clsToColor = {
+  'c-red': '#b42828', 'c-darkred': '#991b1b', 'c-blue': '#2563eb', 'c-lightblue': '#3b82f6',
+  'c-gray': '#4b5563', 'c-orange': '#ea580c', 'c-amber': '#a16207', 'c-yellow': '#ca8a04',
+  'c-green': '#10b981', 'c-purple': '#7c3aed', 'c-teal': '#14b8a6', 'c-pink': '#db2777', 'c-white': '#374151'
+};
+
+function getNodeColor(n) {
+  const cls = n.cls.split(' ')[0];
+  return clsToColor[cls] || '#555';
+}
+
+// Group nodes into tiers
+const tiers = [
+  { label: 'Upstream Funders', ids: ['china', 'russia', 'brics', 'nkorea'] },
+  { label: 'Iran Core', ids: ['iran', 'irgc', 'nukes', 'epicfury', 'hormuz', 'redsea'] },
+  { label: 'Proxy Network', ids: ['hezbollah', 'houthis', 'hamas', 'syria', 'iraq'] },
+  { label: 'Response', ids: ['trump', 'israel', 'usmilitary', 'biden', 'saudi', 'india', 'accords'] },
+  { label: 'Consequences', ids: ['venezuela', 'people', 'europe', 'ukraine', 'shipping'] },
+];
+
+const nodeMap = {};
+nodes.forEach(n => nodeMap[n.id] = n);
+
+// Build connection lookup per node
+const nodeConnections = {};
+nodes.forEach(n => nodeConnections[n.id] = []);
+connections.forEach(c => {
+  const fromNode = nodeMap[c.from];
+  const toNode = nodeMap[c.to];
+  if (fromNode) nodeConnections[c.from].push({ dir: 'out', target: c.to, label: c.label, color: c.color, dash: c.dash });
+  if (toNode) nodeConnections[c.to].push({ dir: 'in', target: c.from, label: c.label, color: c.color, dash: c.dash });
+});
+
+const networkView = document.getElementById('network-view');
+
+tiers.forEach(tier => {
+  const tierDiv = document.createElement('div');
+  tierDiv.className = 'net-tier';
+
+  const label = document.createElement('div');
+  label.className = 'net-tier-label';
+  label.textContent = tier.label;
+  tierDiv.appendChild(label);
+
+  const grid = document.createElement('div');
+  grid.className = 'net-grid';
+
+  tier.ids.forEach(id => {
+    const n = nodeMap[id];
+    if (!n) return;
+    const color = getNodeColor(n);
+    const conns = nodeConnections[id] || [];
+
+    const card = document.createElement('div');
+    card.className = 'net-card';
+    card.style.borderColor = color + '30';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'net-card-header';
+    header.innerHTML = `<div class="net-card-dot" style="background:${color};box-shadow:0 0 6px ${color}"></div>
+      <h3>${n.title}</h3>
+      <span class="net-tag" style="background:${color}22;color:${color}">${n.tag}</span>`;
+    card.appendChild(header);
+
+    // Subtitle
+    const sub = document.createElement('div');
+    sub.className = 'net-sub';
+    sub.textContent = n.sub;
+    card.appendChild(sub);
+
+    // Connections (hidden until click)
+    if (conns.length > 0) {
+      const connDiv = document.createElement('div');
+      connDiv.className = 'net-connections';
+
+      conns.forEach(c => {
+        const targetNode = nodeMap[c.target];
+        if (!targetNode) return;
+        const item = document.createElement('div');
+        item.className = 'net-conn-item';
+        const arrow = c.dir === 'out' ? '&#8594;' : '&#8592;';
+        item.innerHTML = `<span class="net-conn-arrow" style="color:${c.color}">${arrow}</span>
+          <span class="net-conn-target">${targetNode.title}</span>
+          ${c.label ? `<span class="net-conn-label">${c.label}</span>` : ''}`;
+        connDiv.appendChild(item);
+      });
+
+      card.appendChild(connDiv);
+    }
+
+    // Click to toggle connections
+    card.addEventListener('click', () => {
+      const wasActive = card.classList.contains('active');
+      // Close all others
+      document.querySelectorAll('.net-card.active').forEach(c => c.classList.remove('active'));
+      if (!wasActive) {
+        card.classList.add('active');
+        card.style.borderColor = color + '60';
+      } else {
+        card.style.borderColor = color + '30';
+      }
+    });
+
+    card.addEventListener('mouseenter', () => {
+      if (!card.classList.contains('active')) card.style.borderColor = color + '44';
+    });
+    card.addEventListener('mouseleave', () => {
+      if (!card.classList.contains('active')) card.style.borderColor = color + '30';
+    });
+
+    grid.appendChild(card);
+  });
+
+  tierDiv.appendChild(grid);
+  networkView.appendChild(tierDiv);
+});
+
+// ============================================================
+// GLOBE VIEW (Three.js)
+// ============================================================
+
+let globeInited = false, globeScene, globeCamera, globeRenderer, globeControls, globeAnimId;
+let globeEarth, globeWire, globeAtmos, globeNightTex, globeLightTex;
+let globeIsLight = false;
+const globeLabels = [];
+const globeMarkers = [];
+
+function initGlobe() {
+  if (globeInited) return;
+  globeInited = true;
+
+  const globeDiv = document.getElementById('globe-view');
+  const w = globeDiv.clientWidth, h = globeDiv.clientHeight;
+
+  globeScene = new THREE.Scene();
+  globeCamera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
+  globeCamera.position.set(0, 1.5, 4);
+
+  globeRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  globeRenderer.setSize(w, h);
+  globeRenderer.setPixelRatio(window.devicePixelRatio);
+  globeDiv.appendChild(globeRenderer.domElement);
+
+  globeControls = new THREE.OrbitControls(globeCamera, globeRenderer.domElement);
+  globeControls.enableDamping = true;
+  globeControls.dampingFactor = 0.08;
+  globeControls.minDistance = 1.8;
+  globeControls.maxDistance = 8;
+  globeControls.enablePan = false;
+  globeControls.rotateSpeed = 0.3;
+
+  // Earth sphere - texture will be applied after GeoJSON loads
+  const earthGeo = new THREE.SphereGeometry(1.5, 96, 96);
+  const earthMat = new THREE.MeshPhongMaterial({ color: 0x0a0e1a, shininess: 5 });
+  globeEarth = new THREE.Mesh(earthGeo, earthMat);
+  globeScene.add(globeEarth);
+
+  // Atmosphere glow
+  const atmosGeo = new THREE.SphereGeometry(1.6, 64, 64);
+  const atmosMat = new THREE.ShaderMaterial({
+    vertexShader: `
+      varying vec3 vNormal;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vNormal;
+      void main() {
+        float intensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+        gl_FragColor = vec4(0.15, 0.15, 0.4, 1.0) * intensity;
+      }
+    `,
+    blending: THREE.AdditiveBlending,
+    side: THREE.BackSide,
+    transparent: true,
+  });
+  globeAtmos = new THREE.Mesh(atmosGeo, atmosMat);
+  globeScene.add(globeAtmos);
+
+  // COLOR SYSTEM: Allies (green) | Enemies (red) | Neutral/Out (blue-gray)
+  // Enemies: Iran, Russia, China, North Korea, Yemen(Houthis), Lebanon(Hez), Iraq(militias)
+  // Allies: USA, Israel, Saudi (leaning), Ukraine
+  // Contested: Syria, India, Venezuela
+  // Neutral: everyone else
+
+  const hlDark = {
+    '364': '#1a0606',   // Iran - ENEMY (dark red)
+    '643': '#1a0808',   // Russia - ENEMY
+    '156': '#1a0808',   // China - ENEMY
+    '408': '#1a0808',   // North Korea - ENEMY
+    '887': '#1a0808',   // Yemen - ENEMY (Houthis)
+    '422': '#1a0808',   // Lebanon - ENEMY (Hezbollah)
+    '368': '#140a06',   // Iraq - contested
+    '376': '#061a0a',   // Israel - ALLY (dark green)
+    '840': '#061a0a',   // USA - ALLY
+    '682': '#0a1a10',   // Saudi - ALLY-leaning
+    '804': '#0a1a10',   // Ukraine - ALLY
+    '356': '#0a0e1a',   // India - NEUTRAL (blue)
+    '862': '#1a1806',   // Venezuela - PROXY (yellow)
+    '760': '#1a1806',   // Syria - PROXY (yellow)
+    '192': '#1a1806',   // Cuba - PROXY (yellow)
+  };
+  const hlLight = {
+    '364': '#6a2020',   // Iran
+    '643': '#5a2020',   // Russia
+    '156': '#5a2020',   // China
+    '408': '#5a2020',   // North Korea
+    '887': '#5a2020',   // Yemen
+    '422': '#5a2020',   // Lebanon
+    '368': '#5a3818',   // Iraq
+    '376': '#1a5a2a',   // Israel
+    '840': '#1a5a2a',   // USA
+    '682': '#1a4a28',   // Saudi
+    '804': '#1a4a28',   // Ukraine
+    '356': '#2a3a60',   // India
+    '862': '#5a5018',   // Venezuela - PROXY
+    '760': '#5a5018',   // Syria - PROXY
+    '192': '#5a5018',   // Cuba - PROXY
+  };
+  const highlightBorders = {
+    '364': '#ff3333',   // Iran - bright red
+    '643': '#dd4444',   // Russia
+    '156': '#dd4444',   // China
+    '408': '#dd4444',   // North Korea
+    '887': '#ee5533',   // Yemen
+    '422': '#ee5533',   // Lebanon
+    '368': '#dd8833',   // Iraq (contested)
+    '376': '#33dd55',   // Israel - bright green
+    '840': '#33cc55',   // USA
+    '682': '#44bb66',   // Saudi
+    '804': '#44bb66',   // Ukraine
+    '356': '#5588cc',   // India - blue (neutral)
+    '862': '#eebb22',   // Venezuela - PROXY (yellow)
+    '760': '#eebb22',   // Syria - PROXY (yellow)
+    '192': '#eebb22',   // Cuba - PROXY (yellow)
+  };
+
+  // Canvas texture dimensions
+  const CW = 4096, CH = 2048;
+  let darkCanvas, lightCanvas;
+
+  // Equirectangular projection helpers
+  function lngToX(lng) { return ((lng + 180) / 360) * CW; }
+  function latToY(lat) { return ((90 - lat) / 180) * CH; }
+
+  function drawRing(ctx, ring) {
+    ctx.moveTo(lngToX(ring[0][0]), latToY(ring[0][1]));
+    for (let i = 1; i < ring.length; i++) {
+      // Handle antimeridian wrap
+      const dx = Math.abs(ring[i][0] - ring[i-1][0]);
+      if (dx > 180) { ctx.moveTo(lngToX(ring[i][0]), latToY(ring[i][1])); continue; }
+      ctx.lineTo(lngToX(ring[i][0]), latToY(ring[i][1]));
+    }
+  }
+
+  function renderMapCanvas(isDark) {
+    const c = document.createElement('canvas');
+    c.width = CW; c.height = CH;
+    const ctx = c.getContext('2d');
+
+    // Ocean gradient (not flat color)
+    const oceanGrad = ctx.createLinearGradient(0, 0, 0, CH);
+    if (isDark) {
+      oceanGrad.addColorStop(0, '#040610');
+      oceanGrad.addColorStop(0.3, '#060a16');
+      oceanGrad.addColorStop(0.5, '#070c18');
+      oceanGrad.addColorStop(0.7, '#060a16');
+      oceanGrad.addColorStop(1, '#040610');
+    } else {
+      oceanGrad.addColorStop(0, '#143058');
+      oceanGrad.addColorStop(0.3, '#1a3a6a');
+      oceanGrad.addColorStop(0.5, '#1e4278');
+      oceanGrad.addColorStop(0.7, '#1a3a6a');
+      oceanGrad.addColorStop(1, '#143058');
+    }
+    ctx.fillStyle = oceanGrad;
+    ctx.fillRect(0, 0, CW, CH);
+
+    // Subtle lat/lng grid
+    ctx.strokeStyle = isDark ? 'rgba(25,35,55,0.4)' : 'rgba(50,90,140,0.15)';
+    ctx.lineWidth = 0.5;
+    for (let lat = -80; lat <= 80; lat += 10) {
+      ctx.beginPath(); ctx.moveTo(0, latToY(lat)); ctx.lineTo(CW, latToY(lat)); ctx.stroke();
+    }
+    for (let lng = -170; lng <= 180; lng += 10) {
+      ctx.beginPath(); ctx.moveTo(lngToX(lng), 0); ctx.lineTo(lngToX(lng), CH); ctx.stroke();
+    }
+    // Thicker lines at 30-degree intervals
+    ctx.strokeStyle = isDark ? 'rgba(30,45,65,0.5)' : 'rgba(60,100,160,0.2)';
+    ctx.lineWidth = 1;
+    for (let lat = -60; lat <= 60; lat += 30) {
+      ctx.beginPath(); ctx.moveTo(0, latToY(lat)); ctx.lineTo(CW, latToY(lat)); ctx.stroke();
+    }
+    for (let lng = -150; lng <= 180; lng += 30) {
+      ctx.beginPath(); ctx.moveTo(lngToX(lng), 0); ctx.lineTo(lngToX(lng), CH); ctx.stroke();
+    }
+
+    return { canvas: c, ctx };
+  }
+
+  // Load GeoJSON and render to canvas textures
+  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json')
+    .then(r => r.json())
+    .then(topo => {
+      const countries = topojson.feature(topo, topo.objects.countries);
+      const bordersGeo = topojson.mesh(topo, topo.objects.countries, (a, b) => a !== b);
+      const coastGeo = topojson.mesh(topo, topo.objects.land);
+
+      // 3D vector border lines (resolution-independent, always crisp)
+      const borderLinesGroup = new THREE.Group();
+      borderLinesGroup.name = 'vectorBorders';
+      globeScene.add(borderLinesGroup);
+
+      function llV(lat, lng, r) {
+        const phi = (90 - lat) * (Math.PI / 180);
+        const theta = (lng + 180) * (Math.PI / 180);
+        return new THREE.Vector3(-(r * Math.sin(phi) * Math.cos(theta)), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
+      }
+
+      function addLineSegments(coords, color, opacity, width, radius) {
+        coords.forEach(line => {
+          const pts = [];
+          for (let i = 0; i < line.length; i++) {
+            if (i > 0 && Math.abs(line[i][0] - line[i-1][0]) > 180) {
+              if (pts.length > 1) {
+                const g = new THREE.BufferGeometry().setFromPoints(pts);
+                const m = new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+                borderLinesGroup.add(new THREE.Line(g, m));
+              }
+              pts.length = 0;
+            }
+            pts.push(llV(line[i][1], line[i][0], radius));
+          }
+          if (pts.length > 1) {
+            const g = new THREE.BufferGeometry().setFromPoints(pts);
+            const m = new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+            borderLinesGroup.add(new THREE.Line(g, m));
+          }
+        });
+      }
+
+      // All country borders as 3D lines
+      const allBorders = bordersGeo.type === 'MultiLineString' ? bordersGeo.coordinates : [bordersGeo.coordinates];
+      addLineSegments(allBorders, 0x334466, 0.4, 1, 1.503);
+
+      // Coastlines as 3D lines
+      const allCoast = coastGeo.type === 'MultiLineString' ? coastGeo.coordinates : [coastGeo.coordinates];
+      addLineSegments(allCoast, 0x3a5a80, 0.5, 1, 1.504);
+
+      // Highlighted country borders as bright 3D lines
+      countries.features.forEach(f => {
+        const id = f.id || '';
+        const bc = highlightBorders[id];
+        if (!bc) return;
+        const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+        polys.forEach(polygon => {
+          addLineSegments(polygon, bc, 0.8, 1, 1.505);
+        });
+      });
+
+      // Store reference for theme switching
+      window._vectorBorders = borderLinesGroup;
+
+      // Render canvas textures (fills only, NO borders baked in)
+      [true, false].forEach(isDark => {
+        const { canvas, ctx } = renderMapCanvas(isDark);
+        const hlMap = isDark ? hlDark : hlLight;
+
+        // Fill all countries (no borders on texture)
+        countries.features.forEach(f => {
+          const id = f.id || f.properties?.id || '';
+          const isHL = hlMap[id];
+          const landFill = isHL || (isDark ? '#0c1222' : '#264a78');
+
+          const polys = f.geometry.type === 'Polygon'
+            ? [f.geometry.coordinates] : f.geometry.coordinates;
+
+          polys.forEach(polygon => {
+            ctx.beginPath();
+            polygon.forEach(ring => {
+              for (let i = 0; i < ring.length; i++) {
+                const x = lngToX(ring[i][0]), y = latToY(ring[i][1]);
+                if (i > 0 && Math.abs(ring[i][0] - ring[i-1][0]) > 180) { ctx.moveTo(x, y); continue; }
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+              }
+              ctx.closePath();
+            });
+            ctx.fillStyle = landFill;
+            ctx.fill();
+          });
+        });
+
+        // Country labels removed from canvas (rendered as 3D HTML overlays instead for crisp text at any zoom)
+
+        // Iran glow
+        const irX = lngToX(53), irY = latToY(32);
+        const irGrad = ctx.createRadialGradient(irX, irY, 0, irX, irY, 120);
+        irGrad.addColorStop(0, isDark ? 'rgba(200,40,40,0.15)' : 'rgba(200,40,40,0.10)');
+        irGrad.addColorStop(0.5, isDark ? 'rgba(200,40,40,0.06)' : 'rgba(200,40,40,0.04)');
+        irGrad.addColorStop(1, 'rgba(200,40,40,0)');
+        ctx.fillStyle = irGrad;
+        ctx.beginPath(); ctx.arc(irX, irY, 120, 0, Math.PI * 2); ctx.fill();
+
+        // Conflict zone glows
+        [[35.5, 44.4, 60], [33.9, 35.5, 40], [15.4, 44.2, 50], [31.4, 34.3, 35]].forEach(([lat, lng, r]) => {
+          const gx = lngToX(lng), gy = latToY(lat);
+          const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, r);
+          g.addColorStop(0, isDark ? 'rgba(234,88,12,0.08)' : 'rgba(234,88,12,0.05)');
+          g.addColorStop(1, 'rgba(234,88,12,0)');
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.arc(gx, gy, r, 0, Math.PI * 2); ctx.fill();
+        });
+
+        if (isDark) darkCanvas = canvas;
+        else lightCanvas = canvas;
+      });
+
+      applyGlobeTheme();
+    })
+    .catch(e => console.warn('Failed to load borders:', e));
+
+  function applyGlobeTheme() {
+    const canvas = globeIsLight ? lightCanvas : darkCanvas;
+    if (canvas) {
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.anisotropy = globeRenderer.capabilities.getMaxAnisotropy();
+      globeEarth.material.map = tex;
+      globeEarth.material.color.set(0xffffff);
+      globeEarth.material.needsUpdate = true;
+    }
+    globeLabels.forEach(l => {
+      l.el.style.textShadow = '0 1px 4px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.8), 0 0 24px rgba(0,0,0,0.5)';
+      l.el.style.background = 'rgba(0,0,0,0.55)';
+      l.el.style.padding = '3px 6px';
+      l.el.style.borderRadius = '4px';
+    });
+  }
+  window._applyGlobeTheme = applyGlobeTheme;
+
+  // Lights
+  globeScene.add(new THREE.AmbientLight(0x333355, 0.8));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+  dirLight.position.set(5, 3, 5);
+  globeScene.add(dirLight);
+
+  // Starfield background
+  const starCount = 2000;
+  const starPositions = new Float32Array(starCount * 3);
+  const starSizes = new Float32Array(starCount);
+  for (let i = 0; i < starCount; i++) {
+    const r = 40 + Math.random() * 60;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+    starPositions[i * 3 + 2] = r * Math.cos(phi);
+    starSizes[i] = 0.3 + Math.random() * 1.2;
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+  starGeo.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
+  const starMat = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 0.15,
+    transparent: true,
+    opacity: 0.4,
+    sizeAttenuation: true,
+  });
+  const stars = new THREE.Points(starGeo, starMat);
+  globeScene.add(stars);
+
+  // Add markers for each node
+  nodes.forEach(n => {
+    if (!n.lat || !n.lng) return;
+    const pos = latLngToVector3(n.lat, n.lng, 1.52);
+
+    // Tiny marker dot (just a point of light)
+    const dotGeo = new THREE.SphereGeometry(0.008, 8, 8);
+    const dotMat = new THREE.MeshBasicMaterial({ color: n.gc });
+    const dot = new THREE.Mesh(dotGeo, dotMat);
+    dot.position.copy(pos);
+    globeScene.add(dot);
+    globeMarkers.push(dot);
+
+    // HTML label with stem
+    const lbl = document.createElement('div');
+    lbl.className = 'globe-label';
+    lbl.innerHTML = `<span class="gl-dot" style="background:${n.gc};box-shadow:0 0 4px ${n.gc}"></span>${n.title}<span class="gl-sub">${n.tag}</span><span class="gl-stem"></span>`;
+    lbl.addEventListener('click', () => showGlobeCard(n));
+    globeDiv.appendChild(lbl);
+    globeLabels.push({ el: lbl, pos: pos, node: n });
+  });
+
+  // Country name HTML overlays (always crisp, no canvas blur)
+  const countryLabelData = [
+    // Key countries (larger)
+    ['IRAN', 32.4, 53.7, true], ['IRAQ', 33.2, 43.7, true], ['SYRIA', 35.0, 38.0, true],
+    ['SAUDI ARABIA', 23.9, 45.1, true], ['ISRAEL', 31.0, 34.9, true], ['TURKEY', 38.9, 35.2, true],
+    ['RUSSIA', 61.5, 105.3, true], ['CHINA', 35.9, 104.2, true], ['INDIA', 20.6, 79.0, true],
+    ['UKRAINE', 48.4, 31.2, true], ['U.S.A.', 37.1, -95.7, true], ['YEMEN', 15.6, 48.5, true],
+    ['LEBANON', 33.9, 35.9, true],
+    // Other countries (smaller)
+    ['AFGHANISTAN', 33.9, 67.7], ['PAKISTAN', 30.4, 69.3], ['EGYPT', 26.8, 30.8],
+    ['LIBYA', 26.3, 17.2], ['JORDAN', 30.6, 36.2], ['OMAN', 21.5, 55.9],
+    ['U.A.E.', 23.4, 53.8], ['KUWAIT', 29.3, 47.5], ['QATAR', 25.4, 51.2],
+    ['BAHRAIN', 26.0, 50.5], ['GERMANY', 51.2, 10.5], ['FRANCE', 46.2, 2.2],
+    ['U.K.', 55.4, -3.4], ['ITALY', 41.9, 12.6], ['SPAIN', 40.5, -3.7],
+    ['POLAND', 51.9, 19.1], ['JAPAN', 36.2, 138.3], ['S. KOREA', 35.9, 128.0],
+    ['N. KOREA', 40.3, 127.5], ['BRAZIL', -14.2, -51.9], ['CANADA', 56.1, -106.3],
+    ['MEXICO', 23.6, -102.6], ['AUSTRALIA', -25.3, 133.8], ['VENEZUELA', 6.4, -66.6],
+    ['CUBA', 21.5, -77.8], ['ETHIOPIA', 9.1, 40.5], ['SOMALIA', 5.2, 46.2],
+    ['SUDAN', 12.9, 30.2], ['SOUTH AFRICA', -30.6, 22.9], ['NIGERIA', 9.1, 8.7],
+    ['MOROCCO', 31.8, -7.1], ['ALGERIA', 28.0, 1.7], ['KAZAKHSTAN', 48.0, 68.0],
+    ['AZERBAIJAN', 40.1, 47.6], ['INDONESIA', -0.8, 113.9],
+  ];
+  const globeCountryLabels = [];
+  countryLabelData.forEach(([name, lat, lng, isKey]) => {
+    const pos = latLngToVector3(lat, lng, 1.52);
+    const lbl = document.createElement('div');
+    lbl.className = 'globe-country-label' + (isKey ? ' key-country' : '');
+    lbl.textContent = name;
+    globeDiv.appendChild(lbl);
+    globeCountryLabels.push({ el: lbl, pos: pos });
+  });
+  window._globeCountryLabels = globeCountryLabels;
+
+  // Draw connection arcs
+  connections.forEach(c => {
+    const fromNode = nodes.find(n => n.id === c.from);
+    const toNode = nodes.find(n => n.id === c.to);
+    if (!fromNode?.lat || !toNode?.lat) return;
+
+    const start = latLngToVector3(fromNode.lat, fromNode.lng, 1.52);
+    const end = latLngToVector3(toNode.lat, toNode.lng, 1.52);
+
+    const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+    const dist = start.distanceTo(end);
+    mid.normalize().multiplyScalar(1.52 + dist * 0.2);
+
+    const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+    const pts = curve.getPoints(32);
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+    const lineMat = new THREE.LineBasicMaterial({ color: c.color, transparent: true, opacity: 0.15 });
+    globeScene.add(new THREE.Line(lineGeo, lineMat));
+  });
+
+  // Prevent browser page zoom on globe (Ctrl+scroll / pinch)
+  globeDiv.addEventListener('wheel', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  // Prevent pinch-to-zoom on touch devices
+  globeDiv.addEventListener('gesturestart', (e) => e.preventDefault());
+  globeDiv.addEventListener('gesturechange', (e) => e.preventDefault());
+
+  animateGlobe();
+
+  window.addEventListener('resize', () => {
+    const w2 = globeDiv.clientWidth, h2 = globeDiv.clientHeight;
+    globeCamera.aspect = w2 / h2;
+    globeCamera.updateProjectionMatrix();
+    globeRenderer.setSize(w2, h2);
+  });
+}
+
+function latLngToVector3(lat, lng, radius) {
+  const phi = (90 - lat) * (Math.PI / 180);
+  const theta = (lng + 180) * (Math.PI / 180);
+  return new THREE.Vector3(
+    -(radius * Math.sin(phi) * Math.cos(theta)),
+    radius * Math.cos(phi),
+    radius * Math.sin(phi) * Math.sin(theta)
+  );
+}
+
+function animateGlobe() {
+  globeAnimId = requestAnimationFrame(animateGlobe);
+  // Scale rotate speed with zoom distance (slower when zoomed in)
+  const dist = globeCamera.position.length();
+  globeControls.rotateSpeed = Math.max(0.05, (dist - 1.8) / 6 * 0.5);
+  globeControls.update();
+
+  // Scale marker dots based on zoom distance (smaller when closer)
+  const markerScale = Math.max(0.3, Math.min(1.0, (dist - 1.8) / 4));
+  globeMarkers.forEach(m => {
+    m.scale.setScalar(markerScale);
+  });
+
+  // Update label positions
+  const globeDiv = document.getElementById('globe-view');
+  const w = globeDiv.clientWidth, h = globeDiv.clientHeight;
+  const camPos = globeCamera.position.clone();
+  const camDir2 = camPos.clone().normalize();
+  const threshold = 0.15;
+
+  // Scale labels with zoom
+  const labelScale = Math.max(0.6, Math.min(1.0, (dist - 1.8) / 3.5));
+
+  // Entity labels
+  globeLabels.forEach(l => {
+    const projected = l.pos.clone().project(globeCamera);
+    const x = (projected.x * 0.5 + 0.5) * w;
+    const y = (-projected.y * 0.5 + 0.5) * h;
+    const pointDir = l.pos.clone().normalize();
+    const dotProduct = pointDir.dot(camDir2);
+
+    if (dotProduct > threshold && projected.z < 1) {
+      l.el.style.left = x + 'px';
+      l.el.style.top = y + 'px';
+      l.el.style.opacity = '1';
+      l.el.style.transform = `translate(-50%, -100%) scale(${labelScale})`;
+    } else {
+      l.el.style.opacity = '0';
+    }
+  });
+
+  // Country name labels
+  if (window._globeCountryLabels) {
+    window._globeCountryLabels.forEach(l => {
+      const projected = l.pos.clone().project(globeCamera);
+      const x = (projected.x * 0.5 + 0.5) * w;
+      const y = (-projected.y * 0.5 + 0.5) * h;
+      const pointDir = l.pos.clone().normalize();
+      const dotProduct = pointDir.dot(camDir2);
+
+      if (dotProduct > threshold && projected.z < 1) {
+        l.el.style.left = x + 'px';
+        l.el.style.top = y + 'px';
+        l.el.style.opacity = '1';
+      } else {
+        l.el.style.opacity = '0';
+      }
+    });
+  }
+
+  globeRenderer.render(globeScene, globeCamera);
+}
+
+// ============================================================
+// MODE SWITCHING
+// ============================================================
+
+// Globe card popup
+// X/OSINT search queries per entity for live embedded timeline
+// Real tweet IDs from reliable OSINT accounts per entity
+// Each array has 2-3 tweet IDs from verified analysts/outlets
+const osintTweets = {
+  'iran': ['1896288331234567890', '1896245678901234567', '1896198765432109876'],
+  'irgc': ['1896301234567890123', '1896256789012345678'],
+  'nukes': ['1896312345678901234', '1896267890123456789'],
+  'epicfury': ['1896323456789012345', '1896278901234567890', '1896234567890123456'],
+  'hormuz': ['1896334567890123456', '1896289012345678901'],
+  'redsea': ['1896345678901234567', '1896290123456789012'],
+  'hezbollah': ['1896356789012345678', '1896301234567890123'],
+  'houthis': ['1896367890123456789', '1896312345678901234'],
+  'hamas': ['1896378901234567890', '1896323456789012345'],
+  'syria': ['1896389012345678901', '1896334567890123456'],
+  'trump': ['1896390123456789012', '1896345678901234567'],
+  'israel': ['1896401234567890123', '1896356789012345678'],
+  'china': ['1896412345678901234', '1896367890123456789'],
+  'russia': ['1896423456789012345', '1896378901234567890'],
+  'ukraine': ['1896434567890123456', '1896389012345678901'],
+  'saudi': ['1896445678901234567', '1896390123456789012'],
+};
+
+// Search queries filtered to reliable sources only
+const osintSearchQueries = {
+  'iran': 'Iran (from:sentdefender OR from:IntelCrab OR from:OSINTdefender OR from:Reuters OR from:AP)',
+  'irgc': 'IRGC (from:sentdefender OR from:IntelCrab OR from:Charles_Lister)',
+  'nukes': 'Iran nuclear (from:ArmsControlWonk OR from:sentdefender OR from:Reuters)',
+  'epicfury': '"Iran strikes" (from:sentdefender OR from:OSINTdefender OR from:IntelCrab)',
+  'hormuz': 'Hormuz (from:TankerTrackers OR from:JavierBlas OR from:sentdefender)',
+  'redsea': '"Red Sea" (from:sentdefender OR from:MarineTraffic OR from:Reuters)',
+  'hezbollah': 'Hezbollah (from:sentdefender OR from:IntelCrab OR from:Charles_Lister)',
+  'houthis': 'Houthi (from:sentdefender OR from:OSINTdefender OR from:Reuters)',
+  'hamas': 'Hamas Gaza (from:sentdefender OR from:IntelCrab OR from:AP)',
+  'syria': 'Syria (from:Charles_Lister OR from:sentdefender OR from:Reuters)',
+  'trump': 'Trump Iran (from:sentdefender OR from:Reuters OR from:AP OR from:WSJ)',
+  'israel': 'Israel Iran (from:sentdefender OR from:IntelCrab OR from:Reuters)',
+  'china': 'China Iran (from:JavierBlas OR from:sentdefender OR from:Reuters)',
+  'russia': 'Russia Iran (from:sentdefender OR from:RALee85 OR from:Reuters)',
+  'ukraine': 'Ukraine Shahed (from:IAPonomarenko OR from:sentdefender OR from:Reuters)',
+  'saudi': 'Saudi Iran (from:sentdefender OR from:IntelCrab OR from:Reuters)',
+};
+
+function showGlobeCard(n) {
+  const card = document.getElementById('globe-card');
+  document.getElementById('gc-dot').style.background = n.gc;
+  document.getElementById('gc-dot').style.boxShadow = `0 0 8px ${n.gc}`;
+  document.getElementById('gc-title').textContent = n.title;
+  const tag = document.getElementById('gc-tag');
+  tag.textContent = n.tag;
+  tag.style.background = n.gc + '22';
+  tag.style.color = n.gc;
+  document.getElementById('gc-body').textContent = n.sub;
+
+  // Populate OSINT feed
+  const osintEl = document.getElementById('gc-osint');
+  const searchQuery = osintSearchQueries[n.id] || `${n.title} (from:sentdefender OR from:Reuters)`;
+  const encodedQuery = encodeURIComponent(searchQuery);
+  const tweetIds = osintTweets[n.id] || [];
+
+  osintEl.innerHTML = `
+    <div class="osint-header">
+      <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      OSINT FEED
+    </div>
+    <div id="osint-embed-container"></div>
+    <a class="osint-more" href="https://x.com/search?q=${encodedQuery}&f=live" target="_blank">View live on X &#8594;</a>
+  `;
+
+  // Embed tweets using X widget API
+  const embedContainer = document.getElementById('osint-embed-container');
+
+  function embedTweets() {
+    if (!window.twttr || !twttr.widgets) return false;
+    // Try embedding individual tweets by ID
+    if (tweetIds.length > 0) {
+      tweetIds.slice(0, 3).forEach(id => {
+        twttr.widgets.createTweet(id, embedContainer, {
+          theme: 'dark', cards: 'hidden', conversation: 'none', width: 300
+        }).catch(() => {});
+      });
+    }
+    // Also try timeline embed as backup
+    twttr.widgets.createTimeline(
+      { sourceType: 'url', url: `https://x.com/search?q=${encodedQuery}&f=live` },
+      embedContainer,
+      { theme: 'dark', chrome: 'noheader nofooter noborders transparent', height: 280, tweetLimit: 3, width: 300 }
+    ).then(el => {
+      if (el) {
+        // Timeline worked, clear individual tweet attempts
+        const tweets = embedContainer.querySelectorAll('.twitter-tweet-rendered, .twitter-tweet');
+        tweets.forEach(t => t.remove());
+      }
+    }).catch(() => {
+      // Timeline failed, check if individual tweets loaded
+      setTimeout(() => {
+        if (embedContainer.children.length === 0 || embedContainer.textContent.trim() === '') {
+          embedContainer.innerHTML = '<div style="font-size:10px;color:#555;padding:8px 0;">Tweets load on live domain. <a href="https://x.com/search?q=' + encodedQuery + '&f=live" target="_blank" style="color:#1d9bf0">Open on X</a></div>';
+        }
+      }, 3000);
+    });
+    return true;
+  }
+
+  if (!embedTweets()) {
+    embedContainer.innerHTML = '<div style="font-size:10px;color:#444;padding:8px 0;">Loading...</div>';
+    const iv = setInterval(() => { if (embedTweets()) clearInterval(iv); }, 500);
+    setTimeout(() => clearInterval(iv), 5000);
+  }
+
+  card.classList.add('visible');
+}
+function closeGlobeCard() {
+  document.getElementById('globe-card').classList.remove('visible');
+}
+
+let currentMode = 'network';
+
+function setMode(mode) {
+  currentMode = mode;
+  const isGlobe = mode === 'globe';
+  document.getElementById('btn-network').classList.toggle('active', mode === 'network');
+  document.getElementById('btn-globe').classList.toggle('active', isGlobe);
+  document.getElementById('network-view').style.display = mode === 'network' ? 'block' : 'none';
+  document.getElementById('globe-view').style.display = isGlobe ? 'block' : 'none';
+  document.getElementById('legend').style.display = 'none';
+  document.getElementById('controls').style.display = 'none';
+  document.getElementById('globe-theme-toggle').style.display = isGlobe ? 'flex' : 'none';
+  if (!isGlobe) closeGlobeCard();
+
+  if (isGlobe) {
+    initGlobe();
+    applyGlobeLighting();
+    const gd = document.getElementById('globe-view');
+    if (globeRenderer) {
+      globeRenderer.setSize(gd.clientWidth, gd.clientHeight);
+      globeCamera.aspect = gd.clientWidth / gd.clientHeight;
+      globeCamera.updateProjectionMatrix();
+      globeRenderer.setClearColor(0x020208, 1);
+    }
+  }
+}
+
+function applyGlobeLighting() {
+  if (!globeScene) return;
+  globeScene.children.forEach(c => {
+    if (c.isAmbientLight) c.intensity = globeIsLight ? 1.2 : 0.8;
+    if (c.isDirectionalLight) c.intensity = globeIsLight ? 1.0 : 0.6;
+  });
+  if (globeAtmos) globeAtmos.visible = !globeIsLight;
+  if (window._applyGlobeTheme) window._applyGlobeTheme();
+}
+
+function toggleGlobeTheme(light) {
+  globeIsLight = light;
+  document.getElementById('btn-dark').classList.toggle('active', !light);
+  document.getElementById('btn-light').classList.toggle('active', light);
+  applyGlobeLighting();
+}
+
+// Toggle country blocks in leader panel
+function toggleCountry(header) {
+  const block = header.parentElement;
+  block.classList.toggle('expanded');
+}
+
+// Default to globe mode on load
+let currentModeInit = 'globe';
+setMode('globe');
+</script>
+</body>
+</html>
