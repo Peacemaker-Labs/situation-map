@@ -2314,6 +2314,31 @@ function toggleCountry(header) {
 // RECENT EVENTS FEED (curated, date-stamped)
 // ============================================================
 const EVENTS = [
+  // March 11, 2026 (Day 12)
+  { date: '2026-03-11', time: '6:00 PM', type: 'economic', text: 'IEA agrees to release record 400M barrels of oil; largest emergency distribution in history', source: 'CNBC' },
+  { date: '2026-03-11', time: '5:00 PM', type: 'diplomatic', text: 'UNSC adopts resolution (13-0-2) condemning Iran attacks on Gulf states and Jordan', source: 'Al Arabiya' },
+  { date: '2026-03-11', time: '4:00 PM', type: 'military', text: 'Hezbollah and Iran launch coordinated strike on northern Israel; 150+ rockets fired', source: 'Times of Israel' },
+  { date: '2026-03-11', time: '3:00 PM', type: 'military', text: 'Iran launches "most intense" missile operation of the war targeting Tel Aviv and Haifa', source: 'Al Jazeera' },
+  { date: '2026-03-11', time: '2:00 PM', type: 'military', text: 'Israel launches "large-scale" wave of strikes on Beirut suburbs; 64 killed in Lebanon', source: 'France 24' },
+  { date: '2026-03-11', time: '1:00 PM', type: 'military', text: 'Three vessels hit by projectiles near Strait of Hormuz; Japan, Thailand, Marshall Islands flagged', source: 'NBC News' },
+  { date: '2026-03-11', time: '12:00 PM', type: 'diplomatic', text: 'Trump says Iran war may end "soon" because "practically nothing left" to bomb', source: 'Al Jazeera' },
+  { date: '2026-03-11', time: '11:00 AM', type: 'diplomatic', text: 'Iran demands US guarantee against future attacks as condition for any ceasefire', source: 'Al Jazeera' },
+  { date: '2026-03-11', time: '10:00 AM', type: 'humanitarian', text: 'Iran reports 1,300+ civilians killed, nearly 10,000 civilian sites hit since Feb 28', source: 'Al Jazeera' },
+  { date: '2026-03-11', time: '9:00 AM', type: 'economic', text: 'Oil at $91/barrel; prices rose despite IEA reserve announcement signaling market fear', source: 'Fortune' },
+  { date: '2026-03-11', time: '8:30 AM', type: 'humanitarian', text: '800,000 displaced in Lebanon; 600+ killed since Hezbollah joined war on March 2', source: 'NPR' },
+  { date: '2026-03-11', time: '8:00 AM', type: 'military', text: 'NATO Cold Response exercise begins: 25,000 troops from 14 countries in Arctic Norway', source: 'Defense News' },
+  { date: '2026-03-11', time: '7:30 AM', type: 'military', text: 'Ukraine strikes Kremniy El microelectronics plant in Bryansk; makes Russian missile parts', source: 'Kyiv Independent' },
+  { date: '2026-03-11', time: '7:00 AM', type: 'military', text: 'Ukraine drones hit KuibyshevAzot chemical plant in Russia\'s Samara region overnight', source: 'Ukrinform' },
+  { date: '2026-03-11', time: '6:30 AM', type: 'humanitarian', text: 'Russia hits Zaporizhzhia with 5 guided aerial bombs; 9 people injured', source: 'Ukrinform' },
+  // March 10, 2026 (Day 11)
+  { date: '2026-03-10', time: '5:00 PM', type: 'military', text: 'CENTCOM: US forces have struck 5,000+ targets in Iran since war began Feb 28', source: 'Al Jazeera' },
+  { date: '2026-03-10', time: '3:00 PM', type: 'humanitarian', text: 'Israeli strikes on eastern Tehran residential buildings kill at least 40 people', source: 'Al Jazeera' },
+  { date: '2026-03-10', time: '1:00 PM', type: 'military', text: 'Iran launches drone attack targeting Haifa oil refinery and fuel storage tanks', source: 'Al Jazeera' },
+  { date: '2026-03-10', time: '11:00 AM', type: 'diplomatic', text: 'Putin and Trump hold first call since December; discuss Iran and Ukraine wars', source: 'Moscow Times' },
+  { date: '2026-03-10', time: '9:00 AM', type: 'military', text: 'Gulf states intercept Iranian missiles/drones; Saudi downs drone east of al-Kharj', source: 'Al Jazeera' },
+  { date: '2026-03-10', time: '8:00 AM', type: 'military', text: 'Iran fires lowest daily missile count since war began; Hegseth notes decline', source: 'CENTCOM' },
+  { date: '2026-03-10', time: '7:00 AM', type: 'economic', text: 'US tariffs on China increase 10%; Canada tariffs take effect March 4 with USMCA exemptions', source: 'Tax Foundation' },
+  { date: '2026-03-10', time: '6:30 AM', type: 'military', text: 'Ukraine to receive 35 PAC-3 Patriot interceptor missiles amid air defense shortage', source: 'Kyiv Independent' },
   // March 9, 2026 (Day 10)
   { date: '2026-03-09', time: '3:00 PM', type: 'economic', text: 'Brent crude nears $120/barrel; US crude past $90 as Iran war enters second week', source: 'NPR' },
   { date: '2026-03-09', time: '1:00 PM', type: 'military', text: 'Hezbollah missile strikes central Israel; 4 wounded, no sirens heard at impact site', source: 'Times of Israel' },
