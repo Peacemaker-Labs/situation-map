@@ -2314,6 +2314,34 @@ function toggleCountry(header) {
 // RECENT EVENTS FEED (curated, date-stamped)
 // ============================================================
 const EVENTS = [
+  // March 16, 2026 (Day 17)
+  { date: '2026-03-16', time: '8:00 AM', type: 'military', text: 'Thick black smoke over Tehran as Israel begins new wave of strikes targeting infrastructure', source: 'CNN' },
+  { date: '2026-03-16', time: '7:00 AM', type: 'diplomatic', text: 'Trump urges China and allies to help keep Strait of Hormuz open; calls for naval coalition', source: 'CNN' },
+  { date: '2026-03-16', time: '6:00 AM', type: 'military', text: 'Ukrainian drones strike oil depot in Labinsk, Krasnodar Krai; massive fire reported', source: 'Kyiv Independent' },
+  // March 15, 2026 (Day 16)
+  { date: '2026-03-15', time: '6:00 PM', type: 'military', text: 'IDF says it still has "thousands of targets" to hit in Iran; strikes 200+ targets in 24 hours', source: 'Times of Israel' },
+  { date: '2026-03-15', time: '5:00 PM', type: 'diplomatic', text: 'Iran FM: "We never asked for a ceasefire"; rejects US terms as war keeps raging', source: 'NPR' },
+  { date: '2026-03-15', time: '4:00 PM', type: 'critical', text: 'US launches Operation Rough Rider: massive airstrikes on Houthis across 7 Yemen provinces; 53 killed', source: 'Times of Israel' },
+  { date: '2026-03-15', time: '3:00 PM', type: 'economic', text: 'Trump weighing options to strike Iran\'s critical oil hub at Kharg Island, UN Amb Waltz says', source: 'CNBC' },
+  { date: '2026-03-15', time: '2:00 PM', type: 'military', text: 'US-Israel strikes on Isfahan kill at least 15 as conflict enters 16th day', source: 'Al Jazeera' },
+  { date: '2026-03-15', time: '1:00 PM', type: 'military', text: 'China resumes large-scale military flights around Taiwan; 26 PLA aircraft detected after 2-week lull', source: 'Semafor' },
+  { date: '2026-03-15', time: '12:00 PM', type: 'military', text: 'Iran launches multiple missile barrages at central Israel; sirens blare across the country', source: 'Al Jazeera' },
+  { date: '2026-03-15', time: '11:00 AM', type: 'military', text: 'Saudi Arabia shoots down 56 Iranian drones since Friday; one targeted Riyadh diplomatic zone', source: 'Al Jazeera' },
+  // March 14, 2026 (Day 15)
+  { date: '2026-03-14', time: '4:00 PM', type: 'diplomatic', text: 'EU renews Russia sanctions until Sept 15 targeting 2,600+ individuals; Hungary/Slovakia drop block', source: 'EU Council' },
+  { date: '2026-03-14', time: '3:00 PM', type: 'humanitarian', text: 'Six killed in Russian attacks on Ukraine in Zaporizhia and Kyiv regions', source: 'Al Jazeera' },
+  { date: '2026-03-14', time: '2:00 PM', type: 'humanitarian', text: 'Israel kills another 5 Palestinians in Gaza; borders remain closed since Iran war began', source: 'Al Jazeera' },
+  { date: '2026-03-14', time: '1:00 PM', type: 'diplomatic', text: 'Putin calls Pezeshkian; emphasizes Russia supports de-escalation and return to diplomacy', source: 'Al Jazeera' },
+  // March 13, 2026 (Day 14)
+  { date: '2026-03-13', time: '4:00 PM', type: 'military', text: 'IDF strikes underground missile site in Shiraz, air force base, and Tehran air defense HQ', source: 'Alma Center' },
+  { date: '2026-03-13', time: '2:00 PM', type: 'humanitarian', text: 'UNHCR: Iran war has displaced 3.2 million people in under two weeks', source: 'UNHCR' },
+  { date: '2026-03-13', time: '12:00 PM', type: 'diplomatic', text: 'Trump claims Tehran "wants to make a deal" as calls grow for Hormuz naval coalition', source: 'Al Jazeera' },
+  // March 12, 2026 (Day 13)
+  { date: '2026-03-12', time: '4:00 PM', type: 'humanitarian', text: 'Six US airmen killed when KC-135 refueling aircraft crashes in western Iraq; not hostile fire', source: 'NPR' },
+  { date: '2026-03-12', time: '2:00 PM', type: 'military', text: 'Iran says it targets Israeli bases; accuses Israel of bombing hospitals', source: 'Al Jazeera' },
+  { date: '2026-03-12', time: '12:00 PM', type: 'diplomatic', text: 'France to send newest SAMP/T NG anti-aircraft system to Ukraine for battlefield testing', source: 'Kyiv Independent' },
+  { date: '2026-03-12', time: '10:00 AM', type: 'humanitarian', text: 'Iran death toll reaches 1,444 killed, 18,551 injured since US-Israel strikes began Feb 28', source: 'Al Jazeera' },
+  { date: '2026-03-12', time: '8:00 AM', type: 'military', text: 'Two missiles strike perimeter of Ahmad al-Jaber airbase in Kuwait; 3 soldiers wounded', source: 'Al Jazeera' },
   // March 11, 2026 (Day 12) - Late Updates
   { date: '2026-03-11', time: '9:00 PM', type: 'economic', text: 'IRGC: "Not a litre of oil" will pass through Strait of Hormuz; warns of $200/barrel', source: 'Al Jazeera' },
   { date: '2026-03-11', time: '8:30 PM', type: 'economic', text: 'Oil whipsaws: Brent drops 17% to $80 then rebounds to $90 after deleted DoE tweet on escort', source: 'Al Jazeera' },
